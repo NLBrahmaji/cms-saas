@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Website\StoreWebsiteRequest;
+use App\Http\Requests\Website\UpdateWebsiteRequest;
 use App\Http\Resources\Website\WebsiteResource;
 use App\Models\Account;
 use App\Models\Website;
@@ -44,6 +45,16 @@ class WebsiteController extends Controller
     public function show(Account $account, Website $website): WebsiteResource
     {
         $this->authorize('view', $website);
+
+        return new WebsiteResource($website);
+    }
+
+    public function update(UpdateWebsiteRequest $request, Account $account, Website $website): WebsiteResource
+    {
+        if ($request->has('name')) {
+            $website->name = $request->string('name')->toString();
+            $website->save();
+        }
 
         return new WebsiteResource($website);
     }

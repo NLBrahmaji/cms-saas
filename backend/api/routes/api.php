@@ -22,6 +22,7 @@ Route::middleware(['auth:sanctum', 'account.member'])->scopeBindings()->group(fu
     Route::get('/accounts/{account}/websites', [WebsiteController::class, 'index']);
     Route::post('/accounts/{account}/websites', [WebsiteController::class, 'store']);
     Route::get('/accounts/{account}/websites/{website}', [WebsiteController::class, 'show']);
+    Route::patch('/accounts/{account}/websites/{website}', [WebsiteController::class, 'update']);
 
     Route::get('/accounts/{account}/websites/{website}/settings', [WebsiteSettingController::class, 'show']);
     Route::patch('/accounts/{account}/websites/{website}/settings', [WebsiteSettingController::class, 'update']);

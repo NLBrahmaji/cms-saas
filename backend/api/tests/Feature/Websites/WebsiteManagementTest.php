@@ -57,6 +57,15 @@ function statefulPostJsonForWebsites(string $uri, array $data = []): TestRespons
     return $response;
 }
 
+function statefulPatchJsonForWebsites(string $uri, array $data = []): TestResponse
+{
+    $response = test()->withHeaders(websiteManagementOriginHeaders())->patchJson($uri, $data);
+
+    syncWebsiteManagementCookies($response);
+
+    return $response;
+}
+
 function createWebsiteManagementUser(array $overrides = []): User
 {
     return User::query()->create(array_merge([
@@ -440,6 +449,265 @@ test('spatie team context is restored after website routes', function () {
 
     statefulPostJsonForWebsites(accountWebsitesUri($account), ['name' => 'My Business'])
         ->assertCreated();
+
+    expect($registrar->getPermissionsTeamId())->toBe(999);
+});
+
+test('unauthenticated website patch is unauthorized', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Example',
+        'subdomain' => 'example',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), ['name' => 'New'])
+        ->assertUnauthorized();
+});
+
+test('member with website update can patch website name', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'My Business',
+        'subdomain' => 'my-business',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), ['name' => 'Internal Marketing Site'])
+        ->assertOk()
+        ->assertExactJson(['data' => [
+            'id' => $website->id,
+            'name' => 'Internal Marketing Site',
+            'subdomain' => 'my-business',
+            'status' => 'draft',
+        ]]);
+
+    expect($website->fresh()->name)->toBe('Internal Marketing Site');
+});
+
+test('missing website update permission forbids website patch', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account', ['account.view', 'website.view']);
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Example',
+        'subdomain' => 'example',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), ['name' => 'Blocked'])
+        ->assertForbidden();
+});
+
+test('website patch returns not found for website belonging to another account', function () {
+    $user = createWebsiteManagementUser();
+    $accountA = attachWebsiteMembership($user, 'Account A');
+    $accountB = attachWebsiteMembership($user, 'Account B');
+
+    $websiteOnB = Website::query()->create([
+        'account_id' => $accountB->id,
+        'name' => 'On B',
+        'subdomain' => 'on-b',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulPatchJsonForWebsites('/accounts/'.$accountA->id.'/websites/'.$websiteOnB->id, ['name' => 'Nope'])
+        ->assertNotFound();
+});
+
+test('account scoped permissions do not authorize website patch in another account', function () {
+    $user = createWebsiteManagementUser();
+
+    attachWebsiteMembership($user, 'Account A');
+    $accountB = attachWebsiteMembership($user, 'Account B', ['account.view', 'website.view']);
+    $websiteOnB = Website::query()->create([
+        'account_id' => $accountB->id,
+        'name' => 'On B',
+        'subdomain' => 'on-b',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($accountB, $websiteOnB), ['name' => 'Blocked'])
+        ->assertForbidden();
+});
+
+test('website patch rejects invalid name values', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Example',
+        'subdomain' => 'example',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), ['name' => null])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['name']);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), ['name' => 123])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['name']);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), ['name' => str_repeat('a', 256)])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['name']);
+});
+
+test('website patch rejects unknown and server controlled fields', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Example',
+        'subdomain' => 'example',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), [
+        'extra' => 'nope',
+        'site_name' => 'Public',
+    ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['extra', 'site_name']);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), [
+        'account_id' => $account->id,
+        'subdomain' => 'hacked',
+        'status' => 'published',
+        'timezone' => 'America/New_York',
+        'published_at' => now()->toIso8601String(),
+        'id' => 99,
+        'created_at' => now()->toIso8601String(),
+        'updated_at' => now()->toIso8601String(),
+        'deleted_at' => now()->toIso8601String(),
+    ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors([
+            'account_id',
+            'subdomain',
+            'status',
+            'timezone',
+            'published_at',
+            'id',
+            'created_at',
+            'updated_at',
+            'deleted_at',
+        ]);
+});
+
+test('empty website patch body is a no op', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Stable Name',
+        'subdomain' => 'stable',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), [])
+        ->assertOk()
+        ->assertExactJson(['data' => websiteResourcePayload($website)]);
+
+    expect($website->fresh()->name)->toBe('Stable Name');
+});
+
+test('website rename does not change subdomain settings or lifecycle fields', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'My Business',
+        'subdomain' => 'my-business',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+        'published_at' => null,
+    ]);
+
+    WebsiteSetting::query()->create([
+        'website_id' => $website->id,
+        'site_name' => 'My Business',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), ['name' => 'Internal Marketing Site'])
+        ->assertOk();
+
+    $website->refresh();
+    $settings = WebsiteSetting::query()->where('website_id', $website->id)->first();
+
+    expect($website->name)->toBe('Internal Marketing Site')
+        ->and($website->subdomain)->toBe('my-business')
+        ->and($website->status)->toBe('draft')
+        ->and($website->timezone)->toBe('UTC')
+        ->and($website->published_at)->toBeNull()
+        ->and($settings?->site_name)->toBe('My Business');
+});
+
+test('website patch returns not found for soft deleted website', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Deleted',
+        'subdomain' => 'deleted',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+    $website->delete();
+
+    loginWebsiteManagementUser($user);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), ['name' => 'Nope'])
+        ->assertNotFound();
+});
+
+test('spatie team context is restored after website patch', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Example',
+        'subdomain' => 'example',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    $registrar = app(PermissionRegistrar::class);
+    $registrar->setPermissionsTeamId(999);
+
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), ['name' => 'Renamed'])
+        ->assertOk();
 
     expect($registrar->getPermissionsTeamId())->toBe(999);
 });
