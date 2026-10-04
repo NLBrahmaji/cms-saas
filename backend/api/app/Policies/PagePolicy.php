@@ -26,4 +26,9 @@ class PagePolicy
     {
         return $user->can('page.update');
     }
+
+    public function delete(User $user, Page $page): bool
+    {
+        return $user->can('page.delete');
+    }
 }

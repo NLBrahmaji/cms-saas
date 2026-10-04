@@ -14,6 +14,7 @@ use App\Support\Page\PageDraftMetadataUpdater;
 use App\Support\Page\PageSlugAllocator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 class PageController extends Controller
@@ -70,6 +71,15 @@ class PageController extends Controller
         $page = $this->draftMetadataUpdater->update($page, $request->user(), $changes);
 
         return new PageResource($page);
+    }
+
+    public function destroy(Account $account, Website $website, Page $page): Response
+    {
+        $this->authorize('delete', $page);
+
+        $page->delete();
+
+        return response()->noContent();
     }
 
     private function createPage(Website $website, User $user, string $name): Page
