@@ -1,11 +1,7 @@
 ---
 description: Rules for the SitePro Laravel API and authoritative backend
 globs:
-  - "backend/api/**/*.php"
-  - "backend/api/routes/**/*.php"
-  - "backend/api/config/**/*.php"
-  - "backend/api/database/**/*.php"
-  - "backend/api/tests/**/*.php"
+  - "backend/api/**"
 alwaysApply: false
 ---
 
