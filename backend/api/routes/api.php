@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\WebsiteController;
+use App\Http\Controllers\WebsiteSettingController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/register', [RegisterController::class, 'store']);
@@ -21,4 +22,7 @@ Route::middleware(['auth:sanctum', 'account.member'])->scopeBindings()->group(fu
     Route::get('/accounts/{account}/websites', [WebsiteController::class, 'index']);
     Route::post('/accounts/{account}/websites', [WebsiteController::class, 'store']);
     Route::get('/accounts/{account}/websites/{website}', [WebsiteController::class, 'show']);
+
+    Route::get('/accounts/{account}/websites/{website}/settings', [WebsiteSettingController::class, 'show']);
+    Route::patch('/accounts/{account}/websites/{website}/settings', [WebsiteSettingController::class, 'update']);
 });

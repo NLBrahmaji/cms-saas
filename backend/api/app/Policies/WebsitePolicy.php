@@ -21,4 +21,9 @@ class WebsitePolicy
     {
         return $user->can('website.create');
     }
+
+    public function update(User $user, Website $website): bool
+    {
+        return $user->can('website.update');
+    }
 }
