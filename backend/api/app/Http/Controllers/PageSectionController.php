@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Page\StorePageSectionRequest;
 use App\Http\Resources\Page\PageSectionResource;
 use App\Models\Account;
 use App\Models\Page;
@@ -9,10 +10,16 @@ use App\Models\PageSection;
 use App\Models\PageVersion;
 use App\Models\Website;
 use App\Support\Page\PageMissingDraftException;
+use App\Support\Page\PageSectionCreator;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class PageSectionController extends Controller
 {
+    public function __construct(
+        private readonly PageSectionCreator $pageSectionCreator,
+    ) {}
+
     public function index(Account $account, Website $website, Page $page): AnonymousResourceCollection
     {
         $this->authorize('view', $page);
@@ -37,5 +44,22 @@ class PageSectionController extends Controller
             ->get();
 
         return PageSectionResource::collection($sections);
+    }
+
+    public function store(
+        StorePageSectionRequest $request,
+        Account $account,
+        Website $website,
+        Page $page,
+    ): JsonResponse {
+        $section = $this->pageSectionCreator->create(
+            $page,
+            $request->user(),
+            $request->integer('section_template_id'),
+        );
+
+        return (new PageSectionResource($section))
+            ->response()
+            ->setStatusCode(201);
     }
 }

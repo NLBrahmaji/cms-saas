@@ -233,7 +233,7 @@ test('page sections read returns draft sections with stable public ids', functio
 
     loginPageSectionReadUser($user);
 
-    statefulGetPageSections(pageSectionsUri($account, $website, $page))
+    $response = statefulGetPageSections(pageSectionsUri($account, $website, $page))
         ->assertOk()
         ->assertJsonCount(2, 'data')
         ->assertJsonPath('data.0.id', $first->public_id)
@@ -245,11 +245,14 @@ test('page sections read returns draft sections with stable public ids', functio
         ->assertJsonPath('data.0.template.key', 'hero-centered')
         ->assertJsonPath('data.0.template.name', 'Centered Hero')
         ->assertJsonPath('data.0.template.type_key', 'hero')
-        ->assertJsonPath('data.1.id', $second->public_id)
-        ->assertJsonPath('data.1.content', [])
-        ->assertJsonPath('data.1.settings', []);
+        ->assertJsonPath('data.1.id', $second->public_id);
 
-    $payload = statefulGetPageSections(pageSectionsUri($account, $website, $page))->json('data');
+    $decoded = json_decode($response->getContent(), false);
+
+    expect($decoded->data[1]->settings)->toBeInstanceOf(stdClass::class)
+        ->and($decoded->data[1]->content)->toBeInstanceOf(stdClass::class);
+
+    $payload = $response->json('data');
 
     expect(collect($payload)->pluck('id'))->not->toContain($first->id)
         ->and(collect($payload)->pluck('id'))->not->toContain($second->id);

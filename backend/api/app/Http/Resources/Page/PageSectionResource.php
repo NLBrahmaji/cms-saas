@@ -19,8 +19,24 @@ class PageSectionResource extends JsonResource
             'template' => new PageSectionTemplateResource($this->whenLoaded('template')),
             'sort_order' => $this->sort_order,
             'is_visible' => $this->is_visible,
-            'settings' => $this->settings ?? [],
-            'content' => $this->content?->content ?? [],
+            'settings' => $this->normalizeJsonDocument($this->settings),
+            'content' => $this->normalizeJsonDocument($this->content?->content),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|\stdClass
+     */
+    private function normalizeJsonDocument(mixed $value): array|\stdClass
+    {
+        if ($value === null || $value === []) {
+            return new \stdClass;
+        }
+
+        if (! is_array($value)) {
+            return new \stdClass;
+        }
+
+        return $value;
     }
 }
