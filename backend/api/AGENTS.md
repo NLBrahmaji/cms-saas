@@ -3,11 +3,189 @@
 
 # Laravel Boost Guidelines
 
-The Laravel Boost guidelines are specifically curated by Laravel maintainers for this application. These guidelines should be followed closely to ensure the best experience when building Laravel applications.
-
 ## Foundational Context
 
-This application is a Laravel application running on PHP 8.5. You are an expert with the Laravel ecosystem. Always use the APIs that match the installed major version of each package — do not assume a version.
+## SitePro Backend Context
+
+This Laravel application is the authoritative backend and domain layer for
+the SitePro CMS SaaS.
+
+The frontend applications are:
+
+- `apps/platform` — public SitePro marketing website
+- `apps/dashboard` — authenticated customer account/dashboard
+- `apps/website` — tenant website renderer and visual editor
+
+Laravel owns authoritative persistent business rules and state.
+
+These include, where applicable:
+
+- authentication
+- authorization
+- accounts and memberships
+- permissions
+- websites
+- website ownership/access
+- domains
+- website content
+- draft and published state
+- publishing
+- website versions/history
+- enquiries
+- AI operations and usage
+- subscription/billing state
+
+Frontend applications may improve UX with client-side validation and
+conditional UI, but they are not security or authorization boundaries.
+
+## Tenant Isolation
+
+SitePro is multi-tenant.
+
+Every operation involving tenant-owned resources must preserve tenant
+isolation.
+
+Never authorize access merely because a resource ID exists or was supplied
+by the client.
+
+Authorization must consider the authenticated user, account/membership,
+website, and relevant permission according to the established domain model.
+
+Queries and mutations must not accidentally expose resources belonging to
+another tenant.
+
+Tenant-sensitive behavior requires tests.
+
+## Website and Domain Resolution
+
+A SitePro website may be served through:
+
+- a SitePro-managed temporary subdomain
+- a customer custom domain
+
+Laravel is authoritative for website/domain ownership and relationships.
+
+Do not trust arbitrary client-provided website or account identifiers as
+proof of access.
+
+Domain and website resolution must follow the approved SitePro architecture.
+
+## Draft and Published State
+
+Editing state and publicly published state are distinct concepts.
+
+Public website requests must not accidentally expose draft/unpublished
+content.
+
+Do not invent draft, publishing, or version semantics when they are not yet
+defined by the product specification or existing implementation.
+
+Publishing-related changes should preserve the established version/history
+contract and require appropriate authorization.
+
+## API Design
+
+Laravel APIs are consumed by independently deployed SitePro applications.
+
+Keep API contracts explicit and predictable.
+
+Use appropriate Form Requests, authorization mechanisms, API Resources,
+domain/application actions, or other established Laravel patterns when they
+provide clear responsibility.
+
+Do not create architectural layers merely for symmetry.
+
+Do not create a repository/service/action abstraction chain around simple
+operations unless the complexity genuinely requires it.
+
+Controllers should coordinate HTTP concerns rather than accumulate complex
+business logic.
+
+Validation and authorization must remain server-side even when equivalent
+frontend validation exists.
+
+## AI Operations
+
+AI is an assistance layer over the normal SitePro CMS.
+
+AI-generated changes must pass through the same applicable:
+
+- authorization
+- validation
+- tenant isolation
+- persistence
+- publishing
+- version/history
+
+rules as manual changes.
+
+Do not create privileged AI mutation paths that bypass normal SitePro
+business rules.
+
+Manual CMS functionality must not depend on AI availability or remaining AI
+allowance unless explicitly required by the product specification.
+
+## Security-Sensitive Changes
+
+Treat changes involving the following as security-sensitive:
+
+- authentication
+- sessions
+- authorization
+- memberships
+- permissions
+- tenant resolution
+- custom domains
+- editor access/handoff
+- draft content
+- publishing
+- billing
+- media/file access
+- form submissions
+- AI mutations
+
+Inspect the relevant architecture and existing implementation before changing
+these areas.
+
+Do not weaken authorization, validation, CSRF/session protection, or tenant
+isolation for implementation convenience.
+
+## Existing Database Architecture
+
+Existing committed migrations are the current database architecture baseline.
+
+Inspect the relevant migrations and database schema before implementing a
+domain feature.
+
+Do not modify existing migrations or redesign established tables merely to
+make implementation easier unless the database architecture change is
+explicitly approved.
+
+When a schema change is genuinely required, treat it as an explicit database
+architecture decision rather than an incidental implementation detail.
+
+## Product Requirements
+
+Project-level documentation is located under `/docs`.
+
+Consult the documents relevant to the current feature when product or
+architecture behavior is involved.
+
+In particular, distinguish between:
+
+- product principles — product philosophy
+- product specification — authoritative V1 behavior
+- architecture — system-level decisions
+- development guide — implementation guidance
+- roadmap — sequencing and future direction
+- design references — visual guidance only
+
+Do not infer business rules from design mockup placeholder content.
+
+Do not invent requirements when the specification and existing implementation
+do not establish them.
+
+This application is a Laravel application running on PHP 8.5. Always use the APIs that match the installed major version of each package — do not assume a version.
 
 Before relying on a package's API, confirm its installed version:
 - PHP packages: run `composer show --direct` to list direct dependencies with versions, or `composer show <vendor/package>` for a single package.
@@ -34,15 +212,11 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 ## Frontend Bundling
 
-- If the user doesn't see a frontend change reflected in the UI, it could mean they need to run `npm run build`, `npm run dev`, or `composer run dev`. Ask them.
+- If a frontend change doesn't show in the UI or you get a "Unable to locate file in Vite manifest" error, run `npm run build` or ask the user to run `npm run dev` or `composer run dev`.
 
 ## Documentation Files
 
 - You must only create documentation files if explicitly requested by the user.
-
-## Replies
-
-- Be concise in your explanations - focus on what's important rather than explaining obvious details.
 
 === boost rules ===
 
@@ -72,8 +246,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 ## Project Rules
 
-- This project contains committed, area-grouped rules in `.ai/rules` when that directory exists (settled decisions, non-obvious traps, standing constraints). Framework and package guidelines that only apply to specific paths (testing, frontend, components) also live there, under `.ai/rules/boost` — this is not just recorded decisions, it is load-bearing guidance you have not seen inline. Before you enter plan mode or create/edit any file, you MUST first: open @.ai/rules/index.md (it maps file globs to rule files), read every rule file whose globs cover the path(s) in scope, and run `grep -rin 'keyword' .ai/rules` to catch what a path match alone misses. Do not write code until you have read and are following every matching rule. If `.ai/rules` does not exist, continue without it.
-- Record a rule with `record-rule` only when the user explicitly asks for one. Instructions for the work at hand are not rules, no matter how emphatic: "remove this typo", "use X here" are work to do, not rules to record. Never record a rule on your own initiative, as a byproduct of a change, or to summarize what you just did. When the user does ask, pass a `glob` (e.g. `app/Http/Controllers/**`), a short `title`, and a few-line `note`. Use `record-rule` rather than your native memory or notes tool, because native memory is personal and session-scoped, while only `.ai/rules` is shared with the team and persists in the repo.
+- This project contains committed, area-grouped rules in `.ai/rules` when that directory exists, including path-scoped framework guidelines under `.ai/rules/boost`. Before you enter plan mode or create/edit any file, you MUST first: open @.ai/rules/index.md (it maps file globs to rule files), read every rule file whose globs cover the path(s) in scope, and run `grep -rin 'keyword' .ai/rules` to catch what a path match alone misses. Do not write code until you have read and are following every matching rule. If `.ai/rules` does not exist, continue without it.
 
 ## Artisan
 
@@ -115,11 +288,11 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 ### Model Creation
 
-- When creating new models, create useful factories and seeders for them too. Ask the user if they need any other things, using `php artisan make:model --help` to check the available options.
+- When creating models, create useful factories where they support testing. Create seeders only when the application actually needs seeded development, demo, or baseline data.
 
 ## APIs & Eloquent Resources
 
-- For APIs, default to using Eloquent API Resources and API versioning unless existing API routes do not, then you should follow existing application convention.
+- - For APIs, prefer Eloquent API Resources where appropriate and follow the application's established routing/versioning convention. Do not introduce a new API versioning structure unless the project architecture requires it.
 
 ## URL Generation
 
@@ -127,13 +300,10 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 ## Testing
 
-- When creating models for tests, use the factories for the models. Check if the factory has custom states that can be used before manually setting up the model.
+- When creating models, create useful factories where they support testing. Create seeders only when the application actually needs seeded development,
+  demo, or baseline data.
 - Faker: Use methods such as `$this->faker->word()` or `fake()->randomDigit()`. Follow existing conventions whether to use `$this->faker` or `fake()`.
 - When creating tests, make use of `php artisan make:test [options] {name}` to create a feature test, and pass `--unit` to create a unit test. Most tests should be feature tests.
-
-## Vite Error
-
-- If you receive an "Illuminate\Foundation\ViteException: Unable to locate file in Vite manifest" error, you can run `npm run build` or ask the user to run `npm run dev` or `composer run dev`.
 
 === pint/core rules ===
 

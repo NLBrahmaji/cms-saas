@@ -1,0 +1,61 @@
+---
+description: Next.js frontend development rules
+globs:
+  - "frontend/web/**/*.ts"
+  - "frontend/web/**/*.tsx"
+  - "frontend/web/**/*.js"
+  - "frontend/web/**/*.jsx"
+  - "frontend/web/**/*.css"
+alwaysApply: false
+---
+
+# SitePro Next.js Application
+
+This rule applies to work inside `frontend/web/`.
+
+Before implementing or modifying frontend functionality, read:
+
+`frontend/web/AGENTS.md`
+
+Also consult relevant documents under:
+
+- `docs/product/`
+- `docs/architecture/`
+
+## Product UX
+
+The primary website-management experience is website-first.
+
+Do not turn normal website editing into a traditional CMS dashboard
+with persistent heavy sidebars or configuration screens.
+
+Prefer:
+
+AI assistance
+→ direct website editing
+→ advanced controls when necessary.
+
+The website should remain visually dominant during editing.
+
+## Backend Integration
+
+Laravel is the authoritative API/domain layer.
+
+Do not reproduce backend authorization or authoritative business rules
+as frontend-only logic.
+
+Frontend validation may improve UX, but security-sensitive validation
+must also exist in the API.
+
+## Design References
+
+Use `docs/designs/` as visual reference when available.
+
+Design mockups may contain illustrative content.
+
+Do not assume that pricing, AI allowances, example domains, account
+information, plan limits, or other sample values shown in mockups are
+actual requirements.
+
+Follow the product specification when a mockup and documented behavior
+differ.

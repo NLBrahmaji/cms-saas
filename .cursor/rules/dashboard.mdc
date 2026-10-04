@@ -1,0 +1,20 @@
+---
+description: Rules for the SitePro authenticated dashboard application
+globs:
+  - "apps/dashboard/**/*.{ts,tsx,js,jsx,css}"
+alwaysApply: false
+---
+
+# SitePro Dashboard
+
+When working inside `apps/dashboard`:
+
+- Read and follow `apps/dashboard/AGENTS.md`.
+- Treat Laravel as the authoritative backend/domain layer.
+- Keep routes thin and organize application behavior by feature.
+- Do not scatter API requests through UI components.
+- Do not duplicate backend authorization or business rules in Next.js.
+- Do not introduce global state, new dependencies, or abstraction layers
+  without a demonstrated need.
+- Keep feature-specific code inside the feature that owns it.
+- Consult relevant `/docs` files when product behavior is involved.

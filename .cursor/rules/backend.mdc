@@ -1,0 +1,39 @@
+---
+description: Rules for the SitePro Laravel API and authoritative backend
+globs:
+  - "backend/api/**/*.php"
+  - "backend/api/routes/**/*.php"
+  - "backend/api/config/**/*.php"
+  - "backend/api/database/**/*.php"
+  - "backend/api/tests/**/*.php"
+alwaysApply: false
+---
+
+# SitePro Backend
+
+When working inside `backend/api`:
+
+- Read and follow `backend/api/AGENTS.md`.
+- Treat Laravel as the authoritative SitePro backend and domain layer.
+- Inspect the existing implementation and relevant migrations before making
+  changes.
+- Existing committed migrations are the current database architecture
+  baseline.
+- Do not modify existing migrations or redesign established tables without
+  an explicit database architecture requirement.
+- Enforce authorization, validation and tenant isolation on the backend.
+- Never rely on frontend restrictions for security.
+- Preserve account, membership, website and tenant boundaries.
+- Treat authentication, permissions, domains, draft content, publishing,
+  billing and AI mutations as security-sensitive.
+- AI operations must follow normal SitePro authorization, validation,
+  persistence and publishing rules.
+- Prefer established Laravel conventions over custom architectural layers.
+- Do not introduce repositories, services, actions or other abstractions
+  automatically; use them when they provide a clear responsibility.
+- Keep API contracts explicit and predictable for the independently deployed
+  SitePro frontend applications.
+- Do not invent product behavior or API contracts.
+- Consult relevant `/docs` files when product or architecture behavior is
+  involved.
+- Add or update appropriate tests when behavior changes.

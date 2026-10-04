@@ -36,23 +36,71 @@ Initial scope:
 
 Do not build advanced roles/teams unless required.
 
+Backend authentication is implemented. Frontend authentication UI and the
+protected Dashboard are still pending.
+
+---
+
+## Phase 2A — Account Foundation
+
+Implemented backend scope:
+
+- Account as the SaaS tenant/ownership boundary
+- Account and account-membership models and relationships
+- Atomic user, initial account, and owner-membership onboarding
+- Authenticated account listing and retrieval
+- Active-membership access checks, owner/member distinction, and tenant-isolation tests
+
+No account editing, invitations, member management, or frontend implementation.
+
+## Phase 2B — Account Authorization Foundation
+
+Implemented backend scope:
+
+Authenticated User + Active Account Membership + Account Context + Spatie Team
+Context + Account-scoped Roles/Permissions.
+
+- Validated account context mapped to Spatie's existing team ID
+- Account-scoped owner/admin/member roles and three account permissions
+- Transactional owner-role assignment during registration
+- Permission-gated authorization-info endpoint
+- Explicit per-account bootstrap command for existing data
+- Multi-account isolation, membership revocation, cache, and cleanup tests
+
+Website Foundation extends this mapping with four website permissions.
+
 ---
 
 ## Phase 3 — Site Foundation
 
 Goal:
 
-Allow an authenticated user to create and access websites.
+Allow an authenticated account member to create and access account-owned websites.
 
-Initial scope:
+Implemented backend Website Foundation:
 
-- Site model
-- Create site
-- List user's sites
-- Basic site settings
-- Site ownership authorization
-- Open site from Dashboard
-- Resolve site in Website application
+- Website model and Account ↔ Website relationships
+- Account-scoped list, create, show, PATCH, and soft-delete endpoints
+- Owner/admin website CRUD permissions; member read permission
+- Scoped nested binding, resource policy, and active membership enforcement
+- Identity validation, subdomain normalization/uniqueness, clean resources
+- Tenant isolation, role switching, revocation, lifecycle, and validation tests
+
+Pending: opening sites from Dashboard and website runtime
+resolution. No frontend, domain routing, content, or publishing is implemented.
+
+Website Settings Foundation is implemented:
+
+- Website has-one settings with database uniqueness
+- Atomic website/settings initialization and read-only defaults for legacy sites
+- Account/website-scoped GET/PATCH reusing website.view and website.update
+- Fixed address/social JSON contracts, null clearing, and partial key updates
+- Validation, isolation, role switching, lifecycle, and rollback tests
+
+Recommended next backend milestone: a narrow website SEO-settings configuration
+slice using the existing schema, initially excluding media-dependent image
+management and publishing. Design that contract before implementation. Branding,
+SEO, content, and publishing remain unimplemented in this milestone.
 
 ---
 

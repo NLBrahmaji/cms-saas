@@ -1,0 +1,326 @@
+---
+description: Repository-wide rules for the SitePro CMS SaaS project
+alwaysApply: true
+---
+
+# SitePro Project
+
+SitePro is an AI-first CMS SaaS designed to let non-technical users create,
+manage, and update websites without needing to understand traditional CMS
+concepts.
+
+The primary editing experience is website-first:
+
+- users interact with the actual website
+- AI is the primary assistance layer
+- direct visual editing is the secondary interaction
+- advanced/manual controls appear only when needed
+
+Do not turn SitePro into a traditional dashboard-driven CMS.
+
+## Repository Structure
+
+The repository contains four independently responsible applications:
+
+cms-saas/
+├── apps/
+│   ├── platform/
+│   ├── dashboard/
+│   └── website/
+├── backend/
+│   └── api/
+└── docs/
+
+### apps/platform
+
+Public SitePro marketing website.
+
+Responsibilities include:
+
+- marketing pages
+- product information
+- themes showcase
+- pricing presentation
+- resources
+- trial/signup entry points
+- public SEO
+
+Follow:
+
+apps/platform/AGENTS.md
+
+### apps/dashboard
+
+Authenticated SitePro customer account application.
+
+Responsibilities include:
+
+- websites
+- account/profile
+- subscription and billing
+- domains
+- AI usage
+- notifications
+- enquiries
+- security
+- support
+
+Website content editing does not belong here.
+
+Follow:
+
+apps/dashboard/AGENTS.md
+
+### apps/website
+
+Customer website runtime and SitePro visual editor.
+
+Responsibilities include:
+
+- public customer website rendering
+- temporary SitePro subdomains
+- custom domains
+- visual website editing
+- sections and designs
+- navigation
+- forms
+- website AI interactions
+- preview and publishing
+
+The public renderer and editor must remain architecturally separated while
+using the same website rendering system.
+
+Follow:
+
+apps/website/AGENTS.md
+
+### backend/api
+
+Laravel authoritative backend and domain layer.
+
+Responsibilities include:
+
+- authentication
+- authorization
+- accounts and memberships
+- websites
+- content
+- domains
+- permissions
+- publishing
+- website versions/history
+- enquiries
+- AI operations and usage
+- subscription/billing state
+- other persistent business rules
+
+Follow:
+
+backend/api/AGENTS.md
+
+## Application Independence
+
+The three Next.js applications are intentionally independently deployable.
+
+Do not introduce cross-application imports.
+
+Do not create shared packages merely because similar code exists in two
+applications.
+
+Introduce shared packages only after stable and meaningful reuse has been
+demonstrated and the architecture explicitly calls for it.
+
+Do not move functionality between applications without an architectural
+reason.
+
+## Backend Authority
+
+Laravel is the authoritative source for persistent SitePro business state
+and business rules.
+
+Frontend applications must not replace backend:
+
+- authorization
+- validation
+- permissions
+- publishing rules
+- subscription rules
+- AI allowance enforcement
+- domain ownership rules
+
+Frontend validation and UI restrictions may improve user experience, but
+they are not security boundaries.
+
+## Product Documentation
+
+Project documentation is located under:
+
+docs/
+
+Important documents include:
+
+- docs/product-principles.md
+- docs/v1-product-spec.md
+- docs/architecture.md
+- docs/development-guide.md
+- docs/roadmap.md
+
+Consult documentation relevant to the current task.
+
+Do not load or restructure every document for every small implementation
+task.
+
+Product behavior should follow the approved product specification.
+
+Architecture decisions should follow the architecture documentation.
+
+Product principles explain the intended SitePro experience.
+
+The roadmap describes implementation direction and future work.
+
+## Design References
+
+Local design references may exist under:
+
+docs/designs/
+
+These are visual implementation references.
+
+They are NOT authoritative sources for business rules.
+
+Design mockups may contain placeholder:
+
+- prices
+- plan names
+- AI limits
+- trial details
+- domains
+- account information
+- example content
+
+Do not convert placeholder design content into application business rules.
+
+## Requirements
+
+Do not invent product requirements.
+
+Do not infer missing business behavior from:
+
+- mockups
+- common SaaS conventions
+- another CMS
+- WordPress
+- assumptions about how similar products work
+
+If an implementation detail can be reasonably determined from established
+architecture and conventions, use the existing pattern.
+
+If a meaningful product or architecture decision is genuinely undefined,
+surface it instead of silently inventing behavior.
+
+## Implementation Approach
+
+Before making a meaningful change:
+
+1. Inspect the relevant existing implementation.
+2. Read the nearest applicable AGENTS.md.
+3. Consult relevant project documentation when needed.
+4. Inspect related tests and API contracts.
+5. Understand the existing pattern before introducing a new one.
+6. Make the smallest coherent change.
+
+Do not rewrite unrelated code.
+
+Do not reorganize directories during unrelated feature work.
+
+Do not introduce a new architectural pattern when an existing pattern
+already solves the problem.
+
+## Simplicity
+
+Prefer clear, predictable code over clever abstractions.
+
+Do not automatically create:
+
+- repositories
+- services
+- managers
+- factories
+- adapters
+- providers
+- global stores
+- generic hooks
+- generic utilities
+
+unless the actual implementation benefits from them.
+
+Do not create directories or abstraction layers simply because they are
+common in other projects.
+
+Architecture should emerge from real requirements.
+
+## Dependencies
+
+Do not add dependencies casually.
+
+Before adding a dependency:
+
+1. Check whether it already exists.
+2. Check whether the current stack already solves the problem.
+3. Consider maintenance and performance impact.
+4. Add it only when it provides meaningful value.
+
+Do not replace established project technology without an explicit reason.
+
+## Security
+
+Treat these areas as security-sensitive:
+
+- authentication
+- authorization
+- tenant resolution
+- memberships
+- permissions
+- custom domains
+- editor access
+- draft content
+- publishing
+- billing
+- file/media access
+- form submissions
+- AI mutations
+
+Do not weaken security architecture for implementation convenience.
+
+Do not expose secrets, credentials, private tokens, or sensitive internal
+information to browser code.
+
+## Testing
+
+Behavior changes should include appropriate tests.
+
+Prioritize tests that protect:
+
+- business rules
+- authorization
+- tenant isolation
+- API contracts
+- important user workflows
+- publishing boundaries
+- regressions
+
+Do not create low-value tests solely to increase test counts.
+
+## Scope Discipline
+
+When asked to implement a specific feature:
+
+- stay within that feature's scope
+- modify another application only when required by the feature contract
+- avoid opportunistic refactoring
+- avoid unrelated formatting/reorganization
+- report any necessary out-of-scope changes before making large changes
+
+The goal is a codebase that remains understandable and manually
+maintainable even when much of the implementation is produced with AI
+assistance.

@@ -1,0 +1,28 @@
+---
+description: Rules for the SitePro tenant website renderer and visual editor
+globs:
+  - "apps/website/**/*.{ts,tsx,js,jsx,css}"
+alwaysApply: false
+---
+
+# SitePro Website
+
+When working inside `apps/website`:
+
+- Read and follow `apps/website/AGENTS.md`.
+- Preserve the separation between the public website renderer and editor.
+- There must be one renderer used by both public websites and editing mode.
+- The public renderer must not depend on editor implementation.
+- Avoid loading editor-only functionality for normal public visitors.
+- Treat hostname/tenant resolution, authentication, draft access and
+  publishing as architecture-sensitive.
+- Laravel is authoritative for persistent website data, authorization
+  and business rules.
+- Do not expose draft content to public visitors.
+- Keep editor state separate from persistent website content where
+  appropriate.
+- Do not build one giant editor component or global state object.
+- AI must operate through normal SitePro validation, authorization,
+  history and publishing rules.
+- Consult relevant `/docs` files before making product or architecture
+  assumptions.

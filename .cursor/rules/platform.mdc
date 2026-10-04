@@ -1,0 +1,18 @@
+---
+description: Rules for the SitePro public platform application
+globs:
+  - "apps/platform/**/*.{ts,tsx,js,jsx,css}"
+alwaysApply: false
+---
+
+# SitePro Platform
+
+When working inside `apps/platform`:
+
+- Read and follow `apps/platform/AGENTS.md`.
+- Treat this application as the public SitePro marketing website.
+- Keep it independent from dashboard and tenant website/editor architecture.
+- Prefer simple implementations over unnecessary abstraction.
+- Preserve SEO, accessibility and performance.
+- Do not infer business requirements from design mockup placeholder content.
+- Consult relevant `/docs` files when product behavior is involved.
