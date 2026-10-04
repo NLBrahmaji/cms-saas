@@ -1,5 +1,5 @@
-import { AccountsShell } from "@/features/auth/components/accounts-shell";
+import { AccountsDiscovery } from "@/features/accounts/components/accounts-discovery";
 
 export default function AccountsPage() {
-  return <AccountsShell />;
+  return <AccountsDiscovery />;
 }
