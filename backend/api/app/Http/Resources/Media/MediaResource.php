@@ -5,6 +5,7 @@ namespace App\Http\Resources\Media;
 use App\Models\Media;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 /** @mixin Media */
 class MediaResource extends JsonResource
@@ -25,6 +26,7 @@ class MediaResource extends JsonResource
             'alt_text' => $this->alt_text,
             'title' => $this->title,
             'source' => $this->source,
+            'url' => Storage::disk($this->disk)->url($this->path),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

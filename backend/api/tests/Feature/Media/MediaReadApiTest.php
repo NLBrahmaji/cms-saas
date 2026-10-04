@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -152,6 +153,7 @@ function mediaReadResourcePayload(Media $media): array
         'alt_text' => $media->alt_text,
         'title' => $media->title,
         'source' => $media->source,
+        'url' => Storage::disk($media->disk)->url($media->path),
         'created_at' => $media->created_at?->toJSON(),
         'updated_at' => $media->updated_at?->toJSON(),
     ];
@@ -428,17 +430,17 @@ test('media resource does not expose storage or tenancy internals', function () 
         ->assertOk()
         ->json('data');
 
-    expect($payload)->not->toHaveKeys([
-        'website_id',
-        'created_by',
-        'deleted_at',
-        'disk',
-        'path',
-        'url',
-        'public_url',
-        'download_url',
-        'thumbnail_url',
-    ]);
+    expect($payload)->toHaveKey('url')
+        ->and($payload)->not->toHaveKeys([
+            'website_id',
+            'created_by',
+            'deleted_at',
+            'disk',
+            'path',
+            'public_url',
+            'download_url',
+            'thumbnail_url',
+        ]);
 });
 
 test('website view permission alone does not authorize media read', function () {

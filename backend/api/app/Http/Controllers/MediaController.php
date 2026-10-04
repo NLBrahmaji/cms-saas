@@ -2,14 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Media\StoreMediaRequest;
 use App\Http\Resources\Media\MediaResource;
 use App\Models\Account;
 use App\Models\Media;
 use App\Models\Website;
+use App\Support\Media\MediaUploader;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class MediaController extends Controller
 {
+    public function __construct(
+        private readonly MediaUploader $mediaUploader,
+    ) {}
+
     public function index(Account $account, Website $website): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Media::class);
@@ -27,5 +34,18 @@ class MediaController extends Controller
         $this->authorize('view', $media);
 
         return new MediaResource($media);
+    }
+
+    public function store(StoreMediaRequest $request, Account $account, Website $website): JsonResponse
+    {
+        $media = $this->mediaUploader->upload(
+            $website,
+            $request->user(),
+            $request->file('file'),
+        );
+
+        return (new MediaResource($media))
+            ->response()
+            ->setStatusCode(201);
     }
 }

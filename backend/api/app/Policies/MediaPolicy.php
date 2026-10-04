@@ -7,6 +7,11 @@ use App\Models\User;
 
 class MediaPolicy
 {
+    public function create(User $user): bool
+    {
+        return $user->can('media.upload');
+    }
+
     public function viewAny(User $user): bool
     {
         return $user->can('media.view');

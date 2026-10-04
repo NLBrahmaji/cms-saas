@@ -39,6 +39,7 @@ Route::prefix('v1')->group(function () {
         Route::patch('/accounts/{account}/websites/{website}/settings', [WebsiteSettingController::class, 'update']);
 
         Route::get('/accounts/{account}/websites/{website}/media', [MediaController::class, 'index']);
+        Route::post('/accounts/{account}/websites/{website}/media', [MediaController::class, 'store']);
         Route::get('/accounts/{account}/websites/{website}/media/{media}', [MediaController::class, 'show']);
 
         Route::get('/accounts/{account}/websites/{website}/navigations', [NavigationController::class, 'index']);
