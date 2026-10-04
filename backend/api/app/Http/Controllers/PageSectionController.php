@@ -15,10 +15,13 @@ use App\Models\Website;
 use App\Support\Page\PageMissingDraftException;
 use App\Support\Page\PageSectionContentUpdater;
 use App\Support\Page\PageSectionCreator;
+use App\Support\Page\PageSectionDeleter;
 use App\Support\Page\PageSectionReorderer;
 use App\Support\Page\PageSectionUpdater;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 
 class PageSectionController extends Controller
 {
@@ -27,6 +30,7 @@ class PageSectionController extends Controller
         private readonly PageSectionContentUpdater $pageSectionContentUpdater,
         private readonly PageSectionUpdater $pageSectionUpdater,
         private readonly PageSectionReorderer $pageSectionReorderer,
+        private readonly PageSectionDeleter $pageSectionDeleter,
     ) {}
 
     public function index(Account $account, Website $website, Page $page): AnonymousResourceCollection
@@ -119,5 +123,19 @@ class PageSectionController extends Controller
         );
 
         return PageSectionResource::collection($sections);
+    }
+
+    public function destroy(
+        Request $request,
+        Account $account,
+        Website $website,
+        Page $page,
+        string $section,
+    ): Response {
+        $this->authorize('update', $page);
+
+        $this->pageSectionDeleter->delete($page, $request->user(), $section);
+
+        return response()->noContent();
     }
 }
