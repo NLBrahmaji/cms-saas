@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PageVersion extends Model
 {
@@ -49,5 +50,10 @@ class PageVersion extends Model
     public function publishedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'published_by');
+    }
+
+    public function sections(): HasMany
+    {
+        return $this->hasMany(PageSection::class);
     }
 }

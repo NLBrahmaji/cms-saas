@@ -71,6 +71,7 @@ class PageVersionSnapshotCloner
 
         foreach ($sections as $section) {
             $newSection = PageSection::query()->create([
+                'public_id' => $section->public_id,
                 'page_version_id' => $target->id,
                 'section_template_id' => $section->section_template_id,
                 'sort_order' => $section->sort_order,

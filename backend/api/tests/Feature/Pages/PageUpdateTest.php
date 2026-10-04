@@ -471,7 +471,10 @@ test('published snapshot clone copies seo sections and content independently', f
     $clonedSection = PageSection::query()->where('page_version_id', $versionTwo->id)->firstOrFail();
     $clonedContent = PageSectionContent::query()->where('page_section_id', $clonedSection->id)->firstOrFail();
 
+    $sourceSection = PageSection::query()->findOrFail($fixture['visible_section_id']);
+
     expect($clonedSection->id)->not->toBe($fixture['visible_section_id'])
+        ->and($clonedSection->public_id)->toBe($sourceSection->public_id)
         ->and($clonedSection->sort_order)->toBe(1)
         ->and($clonedSection->settings)->toBe(['theme' => 'dark'])
         ->and($clonedContent->content)->toBe(['headline' => 'Hello']);
