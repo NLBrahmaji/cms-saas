@@ -19,6 +19,7 @@ class WebsiteResource extends JsonResource
             'name' => $this->name,
             'subdomain' => $this->subdomain,
             'status' => $this->status,
+            'home_page_id' => $this->home_page_id,
         ];
     }
 }

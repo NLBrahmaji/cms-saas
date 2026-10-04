@@ -14,9 +14,11 @@ use App\Models\Website;
 use App\Support\Page\PageDraftMetadataUpdater;
 use App\Support\Page\PagePublisher;
 use App\Support\Page\PageSlugAllocator;
+use App\Support\Page\PageSoftDeleter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class PageController extends Controller
@@ -25,6 +27,7 @@ class PageController extends Controller
         private readonly PageSlugAllocator $slugAllocator,
         private readonly PageDraftMetadataUpdater $draftMetadataUpdater,
         private readonly PagePublisher $pagePublisher,
+        private readonly PageSoftDeleter $pageSoftDeleter,
     ) {}
 
     public function index(Account $account, Website $website): AnonymousResourceCollection
@@ -36,6 +39,8 @@ class PageController extends Controller
             ->orderBy('id')
             ->get();
 
+        $this->attachWebsiteContext($website, $pages);
+
         return PageResource::collection($pages);
     }
 
@@ -45,7 +50,7 @@ class PageController extends Controller
 
         $page = $this->createPage($website, $request->user(), $name);
 
-        return (new PageResource($page->load('draftVersion')))
+        return (new PageResource($this->attachWebsiteContext($website, $page->load('draftVersion'))))
             ->response()
             ->setStatusCode(201);
     }
@@ -54,9 +59,7 @@ class PageController extends Controller
     {
         $this->authorize('view', $page);
 
-        $page->loadMissing('draftVersion');
-
-        return new PageResource($page);
+        return new PageResource($this->attachWebsiteContext($website, $page->loadMissing('draftVersion')));
     }
 
     public function update(UpdatePageRequest $request, Account $account, Website $website, Page $page): PageResource
@@ -73,14 +76,14 @@ class PageController extends Controller
 
         $page = $this->draftMetadataUpdater->update($page, $request->user(), $changes);
 
-        return new PageResource($page);
+        return new PageResource($this->attachWebsiteContext($website, $page));
     }
 
     public function destroy(Account $account, Website $website, Page $page): Response
     {
         $this->authorize('delete', $page);
 
-        $page->delete();
+        $this->pageSoftDeleter->delete($website, $page);
 
         return response()->noContent();
     }
@@ -89,7 +92,7 @@ class PageController extends Controller
     {
         $page = $this->pagePublisher->publish($website, $page, $request->user());
 
-        return new PageResource($page);
+        return new PageResource($this->attachWebsiteContext($website, $page));
     }
 
     private function createPage(Website $website, User $user, string $name): Page
@@ -106,7 +109,6 @@ class PageController extends Controller
                 'version' => 1,
                 'name' => $name,
                 'slug' => $slug,
-                'is_home' => false,
                 'parent_page_id' => null,
                 'created_by' => $user->id,
                 'published_by' => null,
@@ -117,5 +119,23 @@ class PageController extends Controller
 
             return $page->refresh();
         });
+    }
+
+    /**
+     * @param  Collection<int, Page>|Page  $pages
+     */
+    private function attachWebsiteContext(Website $website, Collection|Page $pages): Collection|Page
+    {
+        if ($pages instanceof Page) {
+            $pages->setRelation('website', $website);
+
+            return $pages;
+        }
+
+        $pages->each(function (Page $page) use ($website): void {
+            $page->setRelation('website', $website);
+        });
+
+        return $pages;
     }
 }

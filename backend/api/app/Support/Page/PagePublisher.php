@@ -69,12 +69,6 @@ class PagePublisher
 
     private function assertPublishableDraft(Page $page, Website $website, PageVersion $draft): void
     {
-        if ($draft->is_home) {
-            throw ValidationException::withMessages([
-                'is_home' => ['Publishing a homepage is not supported yet.'],
-            ]);
-        }
-
         if ($draft->parent_page_id !== null) {
             $this->assertValidParent($page, (int) $draft->parent_page_id);
         }

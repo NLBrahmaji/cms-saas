@@ -48,7 +48,6 @@ function attachDraftSlug(Website $website, string $slug): void
         'version' => 1,
         'name' => 'Existing',
         'slug' => $slug,
-        'is_home' => false,
     ]);
 
     $page->update(['draft_version_id' => $version->id]);

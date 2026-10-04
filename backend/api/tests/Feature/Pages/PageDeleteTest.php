@@ -168,7 +168,6 @@ function createPageWithDraftForDelete(Website $website, User $creator, string $n
         'version' => 1,
         'name' => $name,
         'slug' => $slug,
-        'is_home' => false,
         'created_by' => $creator->id,
     ]);
 
@@ -322,23 +321,22 @@ test('published page can be soft deleted while versions and pointers remain', fu
         ->and($version->refresh()->published_at)->not->toBeNull();
 });
 
-test('homepage page can be soft deleted without changing other pages', function () {
+test('deleting the website homepage clears home page pointer', function () {
     $user = createPageDeleteUser();
     $account = attachPageDeleteMembership($user, 'Ada Account');
     $website = createPageDeleteWebsite($account);
     $home = createPageWithDraftForDelete($website, $user, 'Home', 'home');
     $other = createPageWithDraftForDelete($website, $user, 'About', 'about');
 
-    $home->draftVersion->update(['is_home' => true]);
+    $website->update(['home_page_id' => $home->id]);
 
     loginPageDeleteUser($user);
 
     statefulDeleteJsonForPages(pageDeleteUri($account, $website, $home))
         ->assertNoContent();
 
-    expect(Page::query()->find($other->id))->not->toBeNull()
-        ->and($other->draftVersion->refresh()->is_home)->toBeFalse()
-        ->and(PageVersion::query()->where('is_home', true)->count())->toBe(1);
+    expect($website->refresh()->home_page_id)->toBeNull()
+        ->and(Page::query()->find($other->id))->not->toBeNull();
 });
 
 test('soft deleting a page does not mutate navigation or redirect references', function () {

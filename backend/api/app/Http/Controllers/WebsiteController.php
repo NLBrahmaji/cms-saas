@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Website\StoreWebsiteRequest;
+use App\Http\Requests\Website\UpdateWebsiteHomepageRequest;
 use App\Http\Requests\Website\UpdateWebsiteRequest;
 use App\Http\Resources\Website\WebsiteResource;
 use App\Models\Account;
 use App\Models\Website;
 use App\Models\WebsiteSetting;
+use App\Support\Website\WebsiteHomepageUpdater;
 use App\Support\Website\WebsiteSubdomainAllocator;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -19,6 +21,7 @@ class WebsiteController extends Controller
 {
     public function __construct(
         private readonly WebsiteSubdomainAllocator $subdomainAllocator,
+        private readonly WebsiteHomepageUpdater $homepageUpdater,
     ) {}
 
     public function index(Account $account): AnonymousResourceCollection
@@ -67,6 +70,18 @@ class WebsiteController extends Controller
         $website->delete();
 
         return response()->noContent();
+    }
+
+    public function updateHomepage(UpdateWebsiteHomepageRequest $request, Account $account, Website $website): WebsiteResource
+    {
+        $pageId = $request->input('page_id');
+
+        $website = $this->homepageUpdater->update(
+            $website,
+            $pageId === null ? null : (int) $pageId,
+        );
+
+        return new WebsiteResource($website);
     }
 
     private function createWebsiteWithSettings(Account $account, string $name): Website

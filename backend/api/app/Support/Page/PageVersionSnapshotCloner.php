@@ -26,7 +26,6 @@ class PageVersionSnapshotCloner
             'version' => $nextVersion,
             'name' => $source->name,
             'slug' => $source->slug,
-            'is_home' => $source->is_home,
             'parent_page_id' => $source->parent_page_id,
             'created_by' => $user->id,
             'published_by' => null,

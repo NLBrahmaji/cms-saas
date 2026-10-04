@@ -127,15 +127,16 @@ function createPageManagementWebsite(Account $account, string $subdomain = 'exam
     ]);
 }
 
-function pageResourcePayload(Page $page): array
+function pageResourcePayload(Page $page, ?Website $website = null): array
 {
     $page->loadMissing('draftVersion');
+    $website ??= Website::query()->find($page->website_id);
 
     return [
         'id' => $page->id,
         'name' => $page->draftVersion->name,
         'slug' => $page->draftVersion->slug,
-        'is_home' => $page->draftVersion->is_home,
+        'is_home' => $website !== null && (int) $website->home_page_id === (int) $page->id,
         'has_published_version' => $page->published_version_id !== null,
     ];
 }
@@ -243,7 +244,6 @@ test('page creation persists page version one and draft pointer transactionally'
         ->and($version->version)->toBe(1)
         ->and($version->name)->toBe('About Us')
         ->and($version->slug)->toBe('about-us')
-        ->and($version->is_home)->toBeFalse()
         ->and($version->parent_page_id)->toBeNull()
         ->and($version->created_by)->toBe($user->id)
         ->and($version->published_by)->toBeNull()

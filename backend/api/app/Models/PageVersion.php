@@ -16,7 +16,6 @@ class PageVersion extends Model
         'name',
         'slug',
         'parent_page_id',
-        'is_home',
         'created_by',
         'published_by',
         'published_at',
@@ -28,7 +27,6 @@ class PageVersion extends Model
     protected function casts(): array
     {
         return [
-            'is_home' => 'boolean',
             'published_at' => 'datetime',
         ];
     }

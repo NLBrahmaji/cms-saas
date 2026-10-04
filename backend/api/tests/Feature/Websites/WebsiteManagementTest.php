@@ -138,6 +138,7 @@ function websiteResourcePayload(Website $website): array
         'name' => $website->name,
         'subdomain' => $website->subdomain,
         'status' => $website->status,
+        'home_page_id' => $website->home_page_id,
     ];
 }
 
@@ -497,6 +498,7 @@ test('member with website update can patch website name', function () {
             'name' => 'Internal Marketing Site',
             'subdomain' => 'my-business',
             'status' => 'draft',
+            'home_page_id' => null,
         ]]);
 
     expect($website->fresh()->name)->toBe('Internal Marketing Site');

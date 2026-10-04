@@ -161,7 +161,6 @@ function createPageWithDraft(Website $website, User $creator, string $name = 'Ab
         'version' => 1,
         'name' => $name,
         'slug' => $slug,
-        'is_home' => false,
         'created_by' => $creator->id,
     ]);
 

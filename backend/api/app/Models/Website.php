@@ -24,6 +24,7 @@ class Website extends Model
         'status',
         'timezone',
         'published_at',
+        'home_page_id',
     ];
 
     /**
@@ -49,5 +50,31 @@ class Website extends Model
     public function pages(): HasMany
     {
         return $this->hasMany(Page::class);
+    }
+
+    public function homePage(): BelongsTo
+    {
+        return $this->belongsTo(Page::class, 'home_page_id');
+    }
+
+    public function assignHomePage(?Page $page): void
+    {
+        if ($page === null) {
+            $this->home_page_id = null;
+            $this->save();
+
+            return;
+        }
+
+        if ($page->trashed()) {
+            throw new \InvalidArgumentException('Home page must not be soft-deleted.');
+        }
+
+        if ((int) $page->website_id !== (int) $this->id) {
+            throw new \InvalidArgumentException('Home page must belong to this website.');
+        }
+
+        $this->home_page_id = $page->id;
+        $this->save();
     }
 }

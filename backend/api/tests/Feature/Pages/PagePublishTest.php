@@ -163,7 +163,6 @@ function createPageWithDraftForPublish(Website $website, User $creator, string $
         'version' => 1,
         'name' => $name,
         'slug' => $slug,
-        'is_home' => false,
         'created_by' => $creator->id,
     ]);
 
@@ -400,21 +399,20 @@ test('same slug in another website does not block publishing', function () {
     publishPage($account, $websiteB, $pageB)->assertOk();
 });
 
-test('publishing rejects homepage drafts until homepage milestone', function () {
+test('page publishing does not change website home page pointer', function () {
     $user = createPagePublishUser();
     $account = attachPagePublishMembership($user, 'Ada Account');
     $website = createPagePublishWebsite($account);
-    $page = createPageWithDraftForPublish($website, $user);
+    $home = createPageWithDraftForPublish($website, $user, 'Home', 'home');
+    $other = createPageWithDraftForPublish($website, $user, 'About', 'about');
 
-    $page->draftVersion->update(['is_home' => true]);
+    $website->update(['home_page_id' => $home->id]);
 
     loginPagePublishUser($user);
 
-    publishPage($account, $website, $page)
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors(['is_home']);
+    publishPage($account, $website, $other)->assertOk();
 
-    expect($page->refresh()->published_version_id)->toBeNull();
+    expect($website->refresh()->home_page_id)->toBe($home->id);
 });
 
 test('publishing accepts a valid same website parent page', function () {
