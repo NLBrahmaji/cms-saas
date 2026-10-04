@@ -89,9 +89,7 @@ Laravel APIs are consumed by independently deployed SitePro applications.
 
 Keep API contracts explicit and predictable.
 
-Use appropriate Form Requests, authorization mechanisms, API Resources,
-domain/application actions, or other established Laravel patterns when they
-provide clear responsibility.
+Use appropriate Form Requests, authorization mechanisms, API Resources, domain/application actions, or other established Laravel patterns when they provide clear responsibility.
 
 Do not create architectural layers merely for symmetry.
 

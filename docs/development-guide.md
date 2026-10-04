@@ -2,9 +2,13 @@
 
 ## General Rule
 
-Build the system incrementally through working vertical slices.
+Build SitePro incrementally through working vertical slices.
 
-Avoid implementing large speculative frameworks before they are required.
+Prefer a small complete workflow over a large collection of disconnected
+backend or frontend foundations.
+
+Avoid implementing speculative frameworks, abstractions, infrastructure, or
+generic systems before they are required by an approved product feature.
 
 ---
 
@@ -12,338 +16,651 @@ Avoid implementing large speculative frameworks before they are required.
 
 ### Platform
 
-Public SaaS marketing application.
+Location:
+
+`apps/platform`
+
+Public SitePro marketing application.
+
+Responsibilities include:
+
+- product marketing
+- Themes
+- Features
+- AI product information
+- Pricing
+- Resources
+- trial/signup entry points
+
+The Platform application is not the CMS.
+
+---
 
 ### Dashboard
 
-Account and SaaS management application.
+Location:
+
+`apps/dashboard`
+
+Authenticated SitePro account-management application.
+
+Responsibilities include:
+
+- authentication UI
+- My Websites
+- account/profile
+- subscription and billing
+- AI usage
+- notifications
+- enquiries
+- security
+- support
+- other account-level management
+
+The Dashboard is not the primary website content editor.
+
+---
 
 ### Website
 
-Customer website rendering and owner editing experience.
+Location:
+
+`apps/website`
+
+Customer website rendering and owner editing application.
+
+The same application serves:
+
+- public customer websites
+- authorized website editing
+- SitePro-managed tenant subdomains
+- supported custom domains
+
+One Website application serves many customer websites.
+
+Do not create one Next.js application per customer.
+
+---
 
 ### Laravel
 
-Authoritative backend/domain application.
+Location:
+
+`backend/api`
+
+Laravel is the authoritative backend and domain application.
+
+Laravel owns security-sensitive business behavior including:
+
+- authentication
+- authorization
+- accounts
+- memberships
+- permissions
+- websites
+- ownership
+- website settings
+- domains
+- content persistence
+- draft/published state
+- publishing
+- versions/history
+- enquiries
+- AI mutations
+- AI usage state
+- subscription/billing state when implemented
+
+Important business rules must not exist only in frontend applications.
 
 ---
 
 ## Local Development Ports
 
-- Platform: 3000
-- Dashboard: 3001
-- Website: 3002
-- Laravel API: 8000
-- PostgreSQL: 5432
+Default local development ports:
 
-The Next.js scripts do not pin ports. Start each frontend with its documented port,
-for example `npm run dev -- --port 3001` for Dashboard and `--port 3002` for Website.
+| Application | URL |
+| --- | --- |
+| Platform | `http://localhost:3000` |
+| Dashboard | `http://localhost:3001` |
+| Website | `http://localhost:3002` |
+| Laravel API | `http://localhost:8000` |
+| PostgreSQL | `localhost:5432` |
 
-## Authentication API
+The Next.js applications should use their documented ports during normal local
+development.
 
-Laravel API routes remain in `backend/api/routes/api.php`, with the automatic URL
-prefix disabled in `bootstrap/app.php`. Backend endpoints use `/auth/...` and
-`/accounts/...` including nested website endpoints; do not add
-an `/api` URL prefix.
-
-Current routes:
-
-- `POST /auth/register` — atomically creates a user, initial account, active owner membership, and account-scoped owner role; returns 201 without logging in.
-- `POST /auth/login` — authenticates with the web session guard and rotates the session ID.
-- `GET /auth/me` — returns the session's authenticated user, or JSON 401 for a guest.
-- `POST /auth/logout` — logs out, invalidates the session, and regenerates the CSRF token.
-
-First-party frontends use Sanctum session cookies, not bearer tokens:
-
-1. Request `GET /sanctum/csrf-cookie` from the Laravel backend with credentials enabled.
-2. Send registration/login requests with credentials and the URL-decoded `XSRF-TOKEN`
-   cookie value in the `X-XSRF-TOKEN` header. Send `Accept: application/json`.
-3. After registration, log in separately. Login establishes the authenticated session.
-4. Send credentials with `/auth/me` and other authenticated requests.
-5. Send the CSRF header with logout. Subsequent `/auth/me` requests return 401.
-
-For Axios, enable `withCredentials` and `withXSRFToken`. With fetch, use
-`credentials: 'include'` and explicitly populate the CSRF header on write requests.
-Browsers supply the Origin/Referer required by Sanctum's stateful detection.
-
-`SANCTUM_STATEFUL_DOMAINS` contains comma-separated hosts and ports without schemes.
-`CORS_ALLOWED_ORIGINS` contains explicit full origins without trailing slashes.
-Defaults cover ports 3000, 3001, and 3002 on both localhost and 127.0.0.1.
-Use the same hostname consistently for frontend and backend; cookies for localhost
-are not shared with 127.0.0.1. CORS allows credentials only for the configured origins.
-Add new API paths/methods to `config/cors.php` when their endpoints are implemented.
-
-In deployed environments, set both origin lists for the actual first-party hosts,
-configure the shared `SESSION_DOMAIN` where subdomains require it, and use secure
-cookies over HTTPS (`SESSION_SECURE_COOKIE=true`). Custom-domain authentication
-remains a separate future milestone.
-
-Registration permits five requests per minute per IP. Login permits five requests
-per minute per normalized email and IP pair. All attempts count; exceeding a limit
-returns JSON 429 with `Retry-After`. Invalid credentials return JSON 422.
-
-Run backend commands from `backend/api`:
+For example:
 
 ```shell
-php artisan test --compact tests/Feature/Auth/AuthenticationTest.php
-php artisan test --compact
-php artisan route:list --path=auth -v
+npm run dev -- --port 3001
 ```
 
-The test configuration uses SQLite `:memory:`, array sessions/cache, and synchronous
-queues. Do not override these settings with development PostgreSQL values or run
-destructive migration commands against the development database. Authentication
-feature tests send real stateful origins; the session-flow tests also enforce CSRF
-and carry cookies between requests without using token authentication helpers.
+for Dashboard and:
+
+```shell
+npm run dev -- --port 3002
+```
+
+for Website.
+
+These addresses are development defaults.
+
+Do not hardcode localhost URLs into application behavior.
+
+Use environment configuration for application URLs, API endpoints, origins,
+cookie configuration, and other environment-dependent values.
+
+Use the same hostname style consistently during local authentication
+development.
+
+For example, do not unnecessarily mix:
+
+```text
+localhost
+```
+
+and:
+
+```text
+127.0.0.1
+```
+
+because browser cookie/origin behavior differs between them.
+
+---
+
+## Production URL Direction
+
+Conceptually:
+
+```text
+cmsplatform.com
+→ Platform
+
+app.cmsplatform.com
+→ Dashboard
+
+*.cmsplatform.com
+→ Website
+
+Customer custom domains
+→ Website
+
+api.cmsplatform.com
+→ Laravel API
+```
+
+These are conceptual production addresses.
+
+The final platform/product domain is configuration and must not be embedded as
+an irreversible application assumption.
+
+---
+
+## Development Sources of Truth
+
+Before implementing a meaningful feature, consult the relevant project
+documentation.
+
+The documents have different responsibilities:
+
+### `docs/product-principles.md`
+
+Defines the product philosophy and interaction principles.
+
+### `docs/v1-product-spec.md`
+
+Defines what SitePro V1 should do.
+
+This is the primary product-behavior reference.
+
+### `docs/architecture.md`
+
+Defines system boundaries, application responsibilities, security boundaries,
+and major technical architecture.
+
+### `docs/development-guide.md`
+
+Defines how implementation work should be approached.
+
+### `docs/roadmap.md`
+
+Defines implementation sequence.
+
+### `docs/designs/`
+
+Contains local visual/UX references.
+
+Design references are not authoritative business specifications.
+
+Mockup values such as pricing, plan names, limits, domains, account data, or
+other placeholders must not automatically become product requirements.
+
+---
+
+## Existing Implementation
+
+Before changing code:
+
+1. inspect the existing implementation
+2. inspect relevant tests
+3. inspect relevant migrations/schema
+4. read the application's `AGENTS.md`
+5. consult relevant product/architecture documentation
+
+Do not assume a class, route, API, component, hook, service, or database field
+exists because it appeared in an earlier design or development discussion.
+
+Do not recreate obsolete implementation history automatically.
+
+The current repository is authoritative for what code exists.
+
+---
+
+## Database Baseline
+
+The committed Laravel migrations are the current database architecture
+baseline.
+
+Before implementing backend persistence:
+
+- inspect the relevant migrations
+- inspect existing relationships and constraints
+- understand nullable/default behavior
+- understand indexes and uniqueness
+- understand soft-delete behavior
+- understand foreign-key behavior
+
+Do not modify existing committed migrations merely to make implementation
+easier.
+
+When an approved feature requires a schema change, create an appropriate new
+migration.
+
+Database architecture changes should be deliberate and reviewable.
+
+---
+
+## Authentication Direction
+
+Laravel owns authentication.
+
+The Next.js applications consume Laravel authentication rather than becoming
+independent authentication authorities.
+
+For first-party SitePro browser applications, Laravel Sanctum
+session/cookie authentication is the intended starting direction.
+
+Do not introduce bearer-token authentication for the first-party browser
+applications merely because it is easier for frontend code.
+
+Authentication implementation must account for:
+
+- browser cookies
+- CSRF
+- CORS
+- allowed origins
+- credentials
+- session security
+- development hostnames
+- production hostnames
+- secure cookies in production
+- SameSite behavior
+
+Exact configuration should be implemented and tested as part of the
+authentication milestone.
+
+---
+
+## Registration and Login
+
+V1 requires a coherent account onboarding and authentication experience.
+
+Registration should establish the required initial SitePro account structure
+according to the Account architecture.
+
+Conceptually:
+
+```text
+Register User
+      ↓
+Create Initial Account
+      ↓
+Create Active Owner Membership
+      ↓
+Initialize Required Account Authorization
+```
+
+These related operations should be consistent and transactional where
+necessary.
+
+Do not invent additional onboarding fields, account naming requirements,
+automatic login behavior, or role workflows unless established by the product
+or architecture specification.
+
+Login should establish the Laravel-controlled authenticated browser session.
+
+Logout should safely terminate the authenticated session.
+
+The authenticated-user endpoint/API shape should be designed explicitly when
+the authentication implementation is created.
+
+---
+
+## Custom-Domain Authentication
+
+Do not assume that authentication cookies for SitePro-controlled domains will
+be available on unrelated customer custom domains.
+
+Custom-domain editor authentication is a separate security-sensitive
+workflow.
+
+Follow the architecture documented in `docs/architecture.md`.
+
+Do not invent a permanent cross-domain token mechanism during unrelated
+feature implementation.
+
+When custom-domain editor authentication is implemented, explicitly design and
+test the secure handoff/session mechanism.
+
+---
 
 ## Account Foundation
 
-`GET /accounts` and `GET /accounts/{account}` require `auth:sanctum` and use the
-same browser session as authentication. Listing returns only non-deleted accounts
-with an active membership for the authenticated user, ordered by ID. Retrieval
-uses `AccountPolicy` and the same membership scope. Ownership alone grants no
-access. Guests receive JSON 401; unrelated users and inactive members receive
-generic JSON 404 for retrieval, matching missing/soft-deleted accounts.
+Account is the SaaS tenant and ownership boundary.
 
-Account resources expose only `id`, `name`, `status`, and `owner_id`. Listing returns
-`{"data": [...]}` and retrieval returns `{"data": {...}}`. Registration returns
-`message`, `user`, and `account` at the top level; the nested account uses the same
-resource fields and omits pivot and soft-delete metadata.
+Conceptually:
 
-`RegisterUser` owns the onboarding transaction and the initial naming rule:
-`John Smith` becomes `John Smith's Account`. For long names, only the name portion
-is truncated to fit the existing 255-character account-name column. No slug or
-account-name registration input is introduced. User names remain unchanged.
-
-Membership status `active` is centralized in `AccountMember::STATUS_ACTIVE`.
-Other stored status strings do not grant access; no additional status lifecycle,
-or account-management endpoints are added. Account authorization is described below.
-Existing users are not automatically backfilled with accounts; until they have
-active membership, their account list is empty.
-
-Run focused account and onboarding coverage from `backend/api`:
-
-```shell
-php artisan test --compact tests/Feature/Accounts tests/Feature/Auth/RegistrationOnboardingTest.php
+```text
+User
+  ↓
+Account Membership
+  ↓
+Account
+  ↓
+Websites
 ```
 
-## Account Authorization Foundation
+A Website belongs to an Account.
 
-`GET /accounts/{account}/authorization` requires session authentication, active
-membership, and `account.view`. Its JSON response contains `account_id`, `roles`,
-and `permissions` (sorted name arrays), without internal pivot records. A guest
-gets 401; an inaccessible/missing account gets generic 404; an active member
-without the required permission gets 403. Existing account listing/retrieval
-remain membership-based and do not require a role.
+A user may belong to more than one Account.
 
-For account-scoped routes, declare the typed `Account $account` route binding,
-apply `auth:sanctum` and `SetCurrentAccount`, then use Laravel's `can` middleware
-or Gate for the required permission. Middleware priority places account context
-after bindings and before permission checks. Always retain the membership boundary;
-a raw role/permission check alone is not a tenant-access check.
+Account access requires an appropriate active membership.
 
-`AccountContext` is a scoped service. Use its `run($account, $user, $callback)`
-method for explicit backend operations; it verifies active membership, sets
-Spatie's current team to the account ID, and clears loaded roles/permissions on
-switching. `finally` cleanup restores nested contexts and removes request context.
-Do not persist the context in static fields, session state, or future queued jobs.
+Ownership alone must not silently bypass the membership boundary.
 
-`AccountRole` and `AccountPermission` centralize the baseline mapping:
+`accounts.owner_id` remains the authoritative ownership concept defined by the
+database architecture.
 
-- Owner and admin: `account.view`, `account.manage`, `account.members.manage`,
-  `website.view`, `website.create`, `website.update`, `website.delete`.
-- Member: `account.view`, `website.view`.
+Role assignment does not itself redefine account ownership.
 
-Ownership still comes from `accounts.owner_id`. An owner role never bypasses
-membership and does not transfer ownership. No permission-management API, member
-workflow, or content permissions are implemented.
+---
 
-`InitializeAccountAuthorization` creates three roles for the specified account
-and seven shared permission definitions under the `web` guard. Repeating it
-synchronizes the documented role permissions without duplicating roles or
-removing user assignments. It locks the account row during initialization and
-resets Spatie's permission cache before/after changes. Registration also resets
-the cache after the outer onboarding transaction commits or rolls back.
+## Account Authorization
 
-Existing accounts are not modified automatically. An operator can explicitly run
-the following from `backend/api`, replacing `<account-id>` with one account ID:
+The intended authorization direction is:
 
-```shell
-php artisan accounts:bootstrap-authorization <account-id>
-php artisan accounts:bootstrap-authorization <account-id> --assign-owner
+```text
+Authenticated User
+        ↓
+Active Membership
+        ↓
+Account Context
+        ↓
+Spatie Team Context
+        ↓
+Account-Scoped Role
+        ↓
+Permission
 ```
 
-The first command initializes definitions only. The optional flag also assigns
-the authoritative owner's account-scoped owner role, but refuses owners without
-active membership. It does not create memberships or assign roles to other users.
-Both commands target one account; neither is a broad backfill. Baseline role
-permissions are reset to the documented mapping when rerun. Existing non-owner
-members need a future explicit role-assignment workflow to use permission-gated
-endpoints; membership-only account access continues to work.
+Spatie team context represents the Account context.
 
-Existing accounts must rerun the first command to receive the new website
-permission mappings. Existing role assignments and direct user permissions remain
-intact. No bootstrap has been run against development data by this milestone.
+Do not create a second competing role/permission architecture unless the
+established model is explicitly changed.
 
-Focused tests:
+The Account associated with the authorized operation must establish account
+context.
 
-```shell
-php artisan test --compact tests/Feature/Accounts/AccountAuthorizationTest.php tests/Feature/Accounts/AccountAuthorizationBootstrapTest.php tests/Feature/Auth/RegistrationAuthorizationTest.php
+Do not trust client-controlled state such as:
+
+- account IDs stored in JavaScript
+- query parameters
+- custom headers
+- local storage
+- frontend-selected account state
+
+as authorization proof.
+
+Frontend state may help select an account for UX purposes, but Laravel must
+independently establish and authorize the real account context.
+
+---
+
+## Baseline Account Permissions
+
+The current architecture defines this baseline:
+
+| Role | Permissions |
+| --- | --- |
+| owner | `account.view`, `account.manage`, `account.members.manage`, `website.view`, `website.create`, `website.update`, `website.delete` |
+| admin | `account.view`, `account.manage`, `account.members.manage`, `website.view`, `website.create`, `website.update`, `website.delete` |
+| member | `account.view`, `website.view` |
+
+Owner and admin currently share the same baseline capability set.
+
+This does not imply ownership transfer rights.
+
+Operations that are inherently owner-specific must verify authoritative
+ownership separately.
+
+Do not expand the role/permission catalogue without an approved requirement.
+
+---
+
+## Tenant Isolation
+
+Tenant isolation is mandatory.
+
+A resource ID alone is never proof that an authenticated user may access the
+resource.
+
+Protected operations must consider the appropriate combination of:
+
+- authenticated user
+- active membership
+- Account
+- Website
+- permission
+- resource ownership
+
+Where practical, resolve nested resources through their authorized parent.
+
+For example:
+
+```text
+Account
+  ↓
+Website
+  ↓
+Website Resource
 ```
 
-Tests use the configured in-memory database and cache. They verify role and direct
-permission isolation, context cleanup, cache invalidation, membership revocation,
-bootstrap idempotence, and atomic rollback on owner-role assignment failure.
-PostgreSQL-specific locking/concurrency verification remains a separate check.
+is safer than independently loading a Website resource and trusting a supplied
+ID.
+
+Tenant isolation applies to:
+
+- accounts
+- websites
+- pages
+- sections
+- settings
+- media
+- navigation
+- forms
+- enquiries
+- domains
+- versions
+- AI operations
+- publishing
+- background jobs
+- caching
+
+Add tests for cross-account and cross-website access when implementing
+protected functionality.
+
+---
 
 ## Website Foundation
 
-All website routes use the existing cookie/CSRF flow and have no `/api` prefix:
+Website implementation must follow the established `websites` database
+architecture.
 
-| Method | Path | Required permission | Success |
-| --- | --- | --- | --- |
-| GET | /accounts/{account}/websites | website.view | 200 |
-| POST | /accounts/{account}/websites | website.create | 201 |
-| GET | /accounts/{account}/websites/{website} | website.view | 200 |
-| PATCH | /accounts/{account}/websites/{website} | website.update | 200 |
-| DELETE | /accounts/{account}/websites/{website} | website.delete | 204 |
+A Website belongs to an Account.
 
-Every route requires active account membership and validated account/team context.
-Nested scoped binding and WebsitePolicy prevent cross-account access, including
-users with membership in both accounts. Missing, foreign, or deleted resources
-return generic 404. Members lacking capability receive 403; guests receive 401.
-Stale roles do not bypass membership revocation.
+Clients must not arbitrarily assign website ownership.
 
-POST requires `name` (nonempty string, max 255) and `subdomain`; `timezone`
-is optional and defaults to UTC. PATCH validates only provided fields; omitted
-values remain unchanged, and an empty PATCH is a no-op. Subdomains are trimmed and
-lowercased before validation and on model assignment, globally unique, and limited
-to one ASCII DNS label (1–63 letters/digits/hyphens, no leading/trailing hyphen).
-No reserved-word list is introduced. Timezone must be a PHP-recognized timezone
-identifier, at most 100 characters.
+Website creation should derive ownership from the authorized Account context.
 
-Payloads containing `account_id`, `id`, `status`, `published_at`, `created_at`,
-`updated_at`, or `deleted_at` are rejected with 422, including null values.
-Other unknown keys are not persisted. Ownership comes from the validated account.
-Resources expose id, account_id, name, subdomain, status, timezone, published_at,
-created_at, and updated_at under `data`; no soft-delete metadata or future domains.
-Listing returns an ID-ordered unpaginated `data` array, consistent with account
-listing and the current expectation of small account website counts.
+Website operations must respect:
 
-DELETE soft-deletes the website. It disappears from normal relationships and
-routes; its subdomain remains reserved by the existing global unique constraint.
-No restore or publishing is implemented. Website creation now initializes only
-baseline settings, as documented below; other related records remain deferred.
-CORS now permits PATCH and DELETE; browser writes still require credentials/CSRF.
+- authentication
+- active membership
+- account context
+- website permissions
+- tenant ownership
 
-Run `php artisan test --compact tests/Feature/Websites` from `backend/api`.
-Tests run on SQLite in memory. PostgreSQL collation, concurrent unique conflicts,
-and foreign-key/locking behavior require separate PostgreSQL verification.
-Application writes normalize subdomains; the existing database constraint itself
-does not enforce lowercase. Pre-existing mixed-case or noncanonical rows require
-an explicit audit before accepting live traffic; this milestone does not rewrite
-them. A concurrent claim of the same subdomain remains protected by the database
-unique constraint, but the losing request can currently return a database error
-instead of the ordinary validation 422. No migrations are changed.
+Website status and publication state are system-controlled concepts.
+
+Do not allow arbitrary client mutation of system-controlled publishing fields.
+
+Soft deletion, uniqueness, defaults, and other database behavior should follow
+the committed schema unless explicitly changed through an approved migration.
 
 ---
 
-## Website Settings Foundation
+## Website Settings Contract
 
-Routes (both return 200 under the usual `data` envelope):
+Website Settings use the existing database architecture.
 
-- GET `/accounts/{account}/websites/{website}/settings`: website.view.
-- PATCH `/accounts/{account}/websites/{website}/settings`: website.update.
+A Website has one Website Settings record.
 
-They inherit Sanctum, active membership, validated account/team context, scoped
-website binding, and WebsitePolicy. Owners/admins can read and update; members
-can read only. No standalone settings ID, POST, DELETE, or /api prefix exists.
-Foreign/deleted parents return generic 404; missing capability returns 403.
-
-The resource exposes exactly six fields:
+The established editable settings contract is:
 
 | Field | Contract |
 | --- | --- |
-| site_name | Nonempty string, max 255; non-null |
-| tagline | Nullable string, max 255 |
-| contact_email | Nullable email string, max 255 |
-| contact_phone | Nullable string, max 50; no country-specific phone rules |
-| address | Nullable JSON object with the fixed keys below |
-| social_links | Nullable JSON object with the fixed keys below |
+| `site_name` | Required non-null string when supplied; max 255 |
+| `tagline` | Nullable string; max 255 |
+| `contact_email` | Nullable email; max 255 |
+| `contact_phone` | Nullable string; max 50 |
+| `address` | Nullable structured object |
+| `social_links` | Nullable structured object |
 
-Address keys: `line1`, `line2`, `city`, `state`, `postal_code`, `country`.
-Values are strings or null; no country-code or address-verification behavior is
-implied. Social keys: `facebook`, `instagram`, `linkedin`, `x`, `youtube`.
-Values are HTTP(S) URLs or null. Network-specific URL ownership is not verified.
-Unknown keys, nested arrays/objects, JSON strings, lists, and non-string values
-are rejected. Empty JSON objects are allowed and retain object representation.
-The existing JSON columns are unchanged; no separate columns or migrations exist.
+Supported `address` keys:
 
-PATCH preserves omitted fields and omitted keys within either JSON object.
-Explicit null clears an entire JSON field, or just an individual supplied key.
-An empty object preserves existing keys. Example:
-
-```json
-{
-  "address": {"city": "Hyderabad", "line2": null},
-  "social_links": {"linkedin": "https://www.linkedin.com/company/example"}
-}
+```text
+line1
+line2
+city
+state
+postal_code
+country
 ```
 
-All unknown top-level fields, including IDs, ownership, timestamps, and unrelated
-configuration, are rejected with 422. Authorization precedes validation.
+Each address value is a nullable string.
 
-Website creation uses a transaction to initialize exactly one settings row with
-site_name copied from the initial website name. Optional fields default to null;
-the schema defines no other configuration defaults. Settings failure rolls back
-website creation. Later website renaming does not change settings.site_name.
-Legacy websites without settings return these effective defaults on GET without
-writing. Their first authorized PATCH persists a row, even with an empty payload.
-Repeated PATCH requests retain one row. A parent-row lock serializes settings
-updates and initialization, with the existing unique constraint as a final guard.
-No developer data is backfilled. No additional authorization bootstrap is required
-for accounts already initialized during Website Foundation.
+Supported `social_links` keys:
 
-Website soft deletion retains settings but makes their endpoints inaccessible.
-Settings have no independent delete/restore API or soft-delete metadata.
+```text
+facebook
+instagram
+linkedin
+x
+youtube
+```
 
-Run `php artisan test --compact tests/Feature/WebsiteSettings`.
-Coverage uses SQLite in memory. PostgreSQL JSON representation, parent-row locks,
-concurrent partial updates, unique constraints, foreign-key cascades, and transaction
-behavior still need PostgreSQL integration verification. The existing subdomain
-concurrency concern remains deferred. Branding, SEO, domains, media, content,
-publishing, and frontend work are not included.
+Each social-link value is a nullable HTTP(S) URL.
 
-## Dependency Policy
+Unknown fields and unknown nested keys must not silently become arbitrary
+configuration.
 
-Do not add dependencies merely for convenience.
+Nested arrays/objects are not implied by this contract.
 
-Before introducing a library:
+PATCH-style updates should preserve omitted settings and omitted JSON keys.
 
-1. Identify the concrete requirement.
-2. Check whether the existing framework already solves it.
-3. Prefer established, maintained packages.
-4. Avoid overlapping libraries solving the same problem.
+Explicit `null` may clear an allowed nullable value according to the approved
+contract.
+
+Website creation should initialize required baseline settings consistently.
+
+Do not infer additional website settings from design mockups.
 
 ---
 
-## Database Changes
+## API Design
 
-All database schema changes must use Laravel migrations.
+Keep API behavior explicit, predictable, and resource-oriented where
+practical.
 
-Do not manually depend on production database schema changes.
+Do not invent API contracts from frontend assumptions.
 
-Keep migrations reviewable and focused.
+For APIs:
+
+- use Laravel authorization
+- use validation/Form Requests where appropriate
+- use API Resources where appropriate
+- use transactions when consistency requires them
+- keep error behavior predictable
+- preserve tenant boundaries
+
+Follow the application's established routing convention.
+
+Do not introduce a new API versioning structure unless the project architecture
+requires it.
+
+Do not add an `/api` prefix merely because Laravel APIs commonly use one if
+the established SitePro routing convention intentionally does not.
+
+Controllers should coordinate HTTP concerns.
+
+Do not accumulate large amounts of business logic inside controllers.
+
+At the same time, do not automatically create:
+
+```text
+Controller
+→ Service
+→ Repository
+→ Manager
+→ Adapter
+```
+
+for simple operations.
+
+Use an abstraction when it has a clear responsibility.
 
 ---
 
 ## Business Logic
 
-Important business rules belong in the Laravel domain/service layer.
+Important business rules belong in the Laravel application/domain layer.
 
 Do not duplicate critical rules across Next.js applications.
 
-Frontend validation improves UX but does not replace backend validation.
+Frontend validation improves user experience but does not replace backend
+validation.
+
+Frontend applications must not become authoritative for:
+
+- ownership
+- permissions
+- account membership
+- domain ownership
+- publishing eligibility
+- billing state
+- AI allowance
+- other security-sensitive business rules
 
 ---
 
@@ -356,88 +673,419 @@ Never trust:
 - frontend visibility
 - URL parameters
 - JavaScript state
+- hidden buttons
 - client-provided ownership information
+- a resource ID alone
 
 as proof of permission.
 
----
+Authorization should occur before protected mutation.
 
-## API Design
-
-Keep API behavior consistent and resource-oriented where practical.
-
-API endpoints should delegate meaningful business operations to appropriate Laravel application/domain services rather than accumulating all logic inside controllers.
-
-Do not create abstractions merely to satisfy a pattern.
-
----
-
-## AI Development
-
-AI-generated actions must use structured application capabilities.
-
-AI must not directly modify the database.
-
-All AI modifications must pass through:
-
-- validation
-- authorization
-- application/domain logic
-
-Destructive or high-impact operations require appropriate confirmation.
+Security-sensitive authorization behavior should have automated tests.
 
 ---
 
 ## Frontend Development
 
-Use TypeScript.
+Use TypeScript in the Next.js applications.
 
 Keep components focused.
 
+Prefer Server Components where they improve the architecture and no client
+behavior is required.
+
+Use `"use client"` only where client-side interaction actually requires it.
+
 Do not embed backend business rules in UI components.
 
-Website editing controls should remain separate from the underlying website presentation wherever practical.
+Do not create application-wide client state by default.
+
+Prefer, in order where appropriate:
+
+1. URL/navigation state
+2. server/API-derived persistent state
+3. local component state
+4. feature-level shared state when genuinely necessary
+
+Do not introduce a global state library merely because the application may
+eventually become complex.
+
+---
+
+## Platform Development
+
+The Platform application should remain relatively simple.
+
+Route files should primarily compose pages.
+
+Reusable marketing UI belongs in appropriate Platform components/features.
+
+Do not turn every marketing section into a feature architecture.
+
+Prioritize:
+
+- accessibility
+- SEO
+- responsive behavior
+- performance
+- visual consistency
+
+Do not treat placeholder marketing copy, pricing, limits, or account data as
+backend business requirements.
+
+---
+
+## Dashboard Development
+
+The Dashboard should be feature-oriented without unnecessary ceremony.
+
+Routes should remain reasonably thin.
+
+Meaningful domain UI may be organized around features such as:
+
+- websites
+- account
+- billing
+- domains
+- AI usage
+- enquiries
+- security
+- support
+
+Do not automatically create a component, hook, service, schema, store, and
+utility directory for every feature.
+
+Start with the smallest structure that keeps the feature clear.
+
+Centralize common API transport/configuration.
+
+Keep feature-specific operations near the feature where practical.
+
+Do not scatter arbitrary `fetch()` behavior throughout unrelated UI
+components.
+
+---
+
+## Website Application Development
+
+The Website application is the most architecture-sensitive frontend.
+
+It serves both:
+
+- public website visitors
+- authorized website owners/editors
+
+Both must use the same underlying Website Renderer.
+
+Do not create separate website-rendering implementations for public and editor
+modes.
+
+The dependency direction is:
+
+```text
+Editor
+  ↓
+Website Renderer
+```
+
+The Website Renderer must not depend on editor implementation.
+
+Public visitors should not unnecessarily load editor code.
+
+Editor selection/UI state must remain separate from persisted website content.
+
+Avoid creating one giant `WebsiteEditor` component containing all editor
+responsibilities.
+
+Compose editor behavior around clear responsibilities.
+
+---
+
+## Hostname and Tenant Resolution
+
+The Website application eventually resolves the current Website from the
+incoming hostname.
+
+Normal public requests must not trust an arbitrary client-provided Website ID
+instead of hostname resolution.
+
+Tenant/domain resolution must be centralized and testable.
+
+During ordinary local development:
+
+```text
+http://localhost:3002
+```
+
+may be used for general Website application work.
+
+When hostname-specific behavior is implemented, use an explicit local
+hostname-testing strategy.
+
+Do not weaken production tenant resolution merely to make localhost testing
+easier.
+
+---
+
+## Sections and Designs
+
+Website pages are composed from supported Sections.
+
+Section content and Design should remain conceptually separate.
+
+Changing a compatible Design should preserve content where possible.
+
+Do not expose technical schema/variant terminology unnecessarily to customers.
+
+Do not build the entire possible section catalogue before the product requires
+it.
+
+Implement sections incrementally as working product features.
+
+Do not build an unrestricted generic page-builder framework unless an approved
+requirement needs it.
+
+---
+
+## Draft and Published State
+
+Editing and publishing are separate operations.
+
+Conceptually:
+
+```text
+Edit
+ ↓
+Draft
+ ↓
+Preview
+ ↓
+Publish
+ ↓
+Published Website
+```
+
+Public visitors must receive published state.
+
+Draft data must not accidentally become publicly visible.
+
+Preview must remain appropriately authorized.
+
+Do not make every edit public automatically.
+
+The exact published representation and caching architecture should be
+implemented when the publishing milestone requires it.
+
+---
+
+## AI Development
+
+AI is an assistance layer over the normal CMS.
+
+Manual CMS functionality must remain usable without AI.
+
+AI-generated actions must use controlled application capabilities.
+
+AI must not directly modify the database outside approved application/domain
+operations.
+
+AI modifications must pass through:
+
+- authentication
+- authorization
+- tenant isolation
+- validation
+- application/domain behavior
+- appropriate history/version behavior
+- publishing rules
+
+AI must not create a privileged parallel mutation path.
+
+Destructive, broad, or high-impact AI operations require the appropriate
+preview or confirmation behavior defined by the product.
+
+Do not build provider abstractions before a concrete AI integration requires
+them.
+
+---
+
+## Forms and Enquiries
+
+Public form submission and private enquiry management are separate concerns.
+
+Public visitors may submit supported published forms.
+
+Enquiry records are private account/website information.
+
+Never expose enquiry data through the public website runtime.
+
+Form-management operations must follow normal Website authorization.
+
+Submission behavior should include appropriate validation and abuse/security
+controls when implemented.
+
+---
+
+## Media
+
+Media management must preserve Account/Website boundaries.
+
+A media ID must not grant cross-tenant access.
+
+Public assets required by published websites may be publicly deliverable, but
+media-management operations remain authorized.
+
+Do not select a storage/CDN/transformation architecture before the media
+feature requires it.
+
+---
+
+## Domains
+
+Laravel/database domain relationships are authoritative for domain ownership
+and website association.
+
+Custom-domain implementation should explicitly handle the approved lifecycle,
+which may include:
+
+- domain submission
+- verification
+- activation
+- SSL readiness
+- routing
+- removal
+
+Do not invent the exact lifecycle before the domain milestone defines it.
+
+Domain-related functionality is security-sensitive and should have appropriate
+tests.
 
 ---
 
 ## Public Website Performance
 
-Do not design the public website runtime around unnecessary API/database calls on every visitor request.
+The public Website runtime is production customer infrastructure.
 
-Publishing, caching and CDN strategy will be implemented as the publishing architecture matures.
+Do not design it around unnecessary API/database work on every visitor
+request.
+
+Public visitors should not load the full editor implementation.
+
+Publishing, caching, CDN, and invalidation strategies should be introduced as
+the public rendering/publishing architecture matures.
+
+Caching must remain tenant-aware.
+
+Never allow a cache optimization to risk serving one customer's website
+content to another customer's domain.
+
+---
+
+## Dependency Policy
+
+Do not add dependencies merely for convenience.
+
+Before introducing a library:
+
+1. identify the concrete requirement
+2. check whether the existing framework already solves it
+3. inspect existing project dependencies
+4. prefer established and maintained packages
+5. avoid overlapping libraries solving the same problem
+
+Do not add a dependency solely because generated code commonly uses it.
+
+---
+
+## Shared Code
+
+The three Next.js applications are independently deployable.
+
+Do not create cross-application imports.
+
+Do not introduce a shared React/component package initially.
+
+A shared package may be introduced later only when real, stable duplication
+demonstrates that it provides a clear architectural benefit.
+
+Do not move Laravel-owned business logic into frontend shared code.
+
+---
+
+## Database Changes
+
+All database schema changes must use Laravel migrations.
+
+Keep migrations focused and reviewable.
+
+The committed migrations are the current architecture baseline.
+
+Do not rewrite historical migrations without an explicit architecture decision.
+
+Do not depend on manual production database changes.
 
 ---
 
 ## Testing
 
-Every module should be tested at the appropriate level.
+Test behavior at the appropriate level.
 
 Priority:
 
 1. business/domain behavior
-2. authorization
-3. API behavior
-4. critical user flows
-5. frontend interactions
+2. tenant isolation
+3. authorization
+4. API behavior
+5. critical user workflows
+6. frontend interactions
 
 Bug fixes should include regression tests when practical.
+
+Security-sensitive behavior should receive explicit test coverage.
+
+For backend work, prefer focused tests during implementation.
+
+Run broader test suites at appropriate checkpoints.
+
+Do not create throwaway verification scripts when a useful automated test
+should exist instead.
 
 ---
 
 ## Development Cycle
 
-For each significant module:
+For each significant feature:
 
-1. Define behavior.
-2. Define UX.
-3. Define required data.
-4. Define backend behavior.
-5. Define frontend behavior.
-6. Implement.
-7. Test.
-8. Review.
-9. Adjust.
-10. Document meaningful decisions.
+1. identify the approved product requirement
+2. review relevant UX/design reference
+3. review relevant architecture
+4. inspect existing implementation
+5. inspect database/schema where relevant
+6. define the smallest coherent behavior
+7. implement backend/domain behavior where required
+8. implement frontend behavior where required
+9. test
+10. review the complete user workflow
+11. update meaningful documentation when decisions changed
+
+Prefer finishing a useful vertical slice over creating multiple unfinished
+foundations.
+
+---
+
+## Scope Discipline
+
+During a feature implementation:
+
+- do not modify unrelated code
+- do not redesign unrelated architecture
+- do not introduce speculative infrastructure
+- do not invent product behavior
+- do not add future features merely because they are nearby
+- do not silently change established contracts
+
+If an unrelated problem is discovered, document or raise it separately unless
+it blocks the current feature.
 
 ---
 
@@ -445,11 +1093,59 @@ For each significant module:
 
 Do not silently change major architecture during implementation.
 
-If implementation reveals that an existing architecture decision is problematic:
+If implementation reveals that an existing architecture decision is
+problematic:
 
 1. stop the architectural change
-2. document the issue
+2. identify the problem
 3. discuss alternatives
 4. choose the new direction
-5. update documentation
-6. implement the change
+5. update the relevant documentation
+6. implement the approved change
+
+Coding agents must follow this process rather than quietly replacing the
+architecture with their preferred pattern.
+
+---
+
+## Product Decisions
+
+Do not invent unresolved commercial or product rules.
+
+Examples include:
+
+- exact pricing
+- plan names
+- trial duration
+- payment-card requirements
+- AI allowance limits
+- storage limits
+- website limits
+- final theme catalogue
+- final section catalogue
+- plan-specific restrictions
+
+If implementation genuinely depends on an unresolved decision, surface the
+decision instead of silently selecting a value.
+
+---
+
+## Definition of Good Implementation
+
+A good SitePro implementation is not the one with the most architecture,
+files, abstractions, or generated code.
+
+Prefer code that is:
+
+- correct
+- secure
+- tenant-safe
+- understandable
+- testable
+- appropriately simple
+- consistent with Laravel/Next.js conventions
+- consistent with SitePro product behavior
+- easy for a developer to modify manually later
+
+The architecture exists to preserve clarity and product behavior, not to
+maximize complexity.

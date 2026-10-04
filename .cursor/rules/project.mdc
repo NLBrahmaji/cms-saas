@@ -87,8 +87,16 @@ Responsibilities include:
 - website AI interactions
 - preview and publishing
 
-The public renderer and editor must remain architecturally separated while
-using the same website rendering system.
+The Website application must use one underlying website renderer for both
+public and authorized editing experiences.
+
+The editor is an enhancement layer over that renderer.
+
+Dependency direction must remain:
+
+Editor → Website Renderer
+
+The Website Renderer must not depend on editor implementation, and public visitors should not load editor functionality unnecessarily.
 
 Follow:
 
