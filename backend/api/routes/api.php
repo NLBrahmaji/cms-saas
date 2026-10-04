@@ -14,6 +14,7 @@ use App\Http\Controllers\PageSeoController;
 use App\Http\Controllers\SectionTemplateCatalogController;
 use App\Http\Controllers\WebsiteBrandingController;
 use App\Http\Controllers\WebsiteController;
+use App\Http\Controllers\WebsiteSeoController;
 use App\Http\Controllers\WebsiteSettingController;
 use Illuminate\Support\Facades\Route;
 
@@ -41,6 +42,9 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/accounts/{account}/websites/{website}/branding', [WebsiteBrandingController::class, 'show']);
         Route::patch('/accounts/{account}/websites/{website}/branding', [WebsiteBrandingController::class, 'update']);
+
+        Route::get('/accounts/{account}/websites/{website}/seo', [WebsiteSeoController::class, 'show']);
+        Route::patch('/accounts/{account}/websites/{website}/seo', [WebsiteSeoController::class, 'update']);
 
         Route::get('/accounts/{account}/websites/{website}/media', [MediaController::class, 'index']);
         Route::post('/accounts/{account}/websites/{website}/media', [MediaController::class, 'store']);
