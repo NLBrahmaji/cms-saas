@@ -66,6 +66,15 @@ function statefulPatchJsonForWebsites(string $uri, array $data = []): TestRespon
     return $response;
 }
 
+function statefulDeleteJsonForWebsites(string $uri): TestResponse
+{
+    $response = test()->withHeaders(websiteManagementOriginHeaders())->deleteJson($uri);
+
+    syncWebsiteManagementCookies($response);
+
+    return $response;
+}
+
 function createWebsiteManagementUser(array $overrides = []): User
 {
     return User::query()->create(array_merge([
@@ -708,6 +717,217 @@ test('spatie team context is restored after website patch', function () {
 
     statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), ['name' => 'Renamed'])
         ->assertOk();
+
+    expect($registrar->getPermissionsTeamId())->toBe(999);
+});
+
+test('unauthenticated website delete is unauthorized', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Example',
+        'subdomain' => 'example',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    statefulDeleteJsonForWebsites(accountWebsitesUri($account, $website))->assertUnauthorized();
+});
+
+test('member with website delete can soft delete website', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Example',
+        'subdomain' => 'example',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    WebsiteSetting::query()->create([
+        'website_id' => $website->id,
+        'site_name' => 'Example',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulDeleteJsonForWebsites(accountWebsitesUri($account, $website))
+        ->assertNoContent()
+        ->assertContent('');
+
+    $trashed = Website::withTrashed()->find($website->id);
+
+    expect($trashed)->not->toBeNull()
+        ->and($trashed->deleted_at)->not->toBeNull()
+        ->and(WebsiteSetting::query()->where('website_id', $website->id)->exists())->toBeTrue();
+});
+
+test('missing website delete permission forbids website delete', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account', [
+        'account.view',
+        'website.view',
+        'website.update',
+    ]);
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Example',
+        'subdomain' => 'example',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulDeleteJsonForWebsites(accountWebsitesUri($account, $website))->assertForbidden();
+
+    expect($website->fresh()->deleted_at)->toBeNull();
+});
+
+test('website delete returns not found for website belonging to another account', function () {
+    $user = createWebsiteManagementUser();
+    $accountA = attachWebsiteMembership($user, 'Account A');
+    $accountB = attachWebsiteMembership($user, 'Account B');
+
+    $websiteOnB = Website::query()->create([
+        'account_id' => $accountB->id,
+        'name' => 'On B',
+        'subdomain' => 'on-b',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulDeleteJsonForWebsites('/accounts/'.$accountA->id.'/websites/'.$websiteOnB->id)->assertNotFound();
+
+    expect($websiteOnB->fresh()->deleted_at)->toBeNull();
+});
+
+test('account scoped permissions do not authorize website delete in another account', function () {
+    $user = createWebsiteManagementUser();
+
+    attachWebsiteMembership($user, 'Account A');
+    $accountB = attachWebsiteMembership($user, 'Account B', ['account.view', 'website.view']);
+
+    $websiteOnB = Website::query()->create([
+        'account_id' => $accountB->id,
+        'name' => 'On B',
+        'subdomain' => 'on-b',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulDeleteJsonForWebsites(accountWebsitesUri($accountB, $websiteOnB))->assertForbidden();
+});
+
+test('soft deleted website is removed from management routes', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+
+    $remaining = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Remaining',
+        'subdomain' => 'remaining',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'To Delete',
+        'subdomain' => 'to-delete',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    $settings = WebsiteSetting::query()->create([
+        'website_id' => $website->id,
+        'site_name' => 'To Delete',
+        'tagline' => 'Keep',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulDeleteJsonForWebsites(accountWebsitesUri($account, $website))->assertNoContent();
+
+    statefulGetJsonForWebsites(accountWebsitesUri($account))
+        ->assertOk()
+        ->assertExactJson(['data' => [websiteResourcePayload($remaining)]]);
+
+    statefulGetJsonForWebsites(accountWebsitesUri($account, $website))->assertNotFound();
+    statefulPatchJsonForWebsites(accountWebsitesUri($account, $website), ['name' => 'Nope'])->assertNotFound();
+    statefulDeleteJsonForWebsites(accountWebsitesUri($account, $website))->assertNotFound();
+    $settingsUri = accountWebsitesUri($account, $website).'/settings';
+    statefulGetJsonForWebsites($settingsUri)->assertNotFound();
+    statefulPatchJsonForWebsites($settingsUri, ['tagline' => 'Nope'])->assertNotFound();
+
+    $settings->refresh();
+
+    expect($settings->tagline)->toBe('Keep');
+});
+
+test('website can be soft deleted regardless of stored status', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Published Example',
+        'subdomain' => 'published-example',
+        'status' => 'published',
+        'timezone' => 'UTC',
+        'published_at' => now(),
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    statefulDeleteJsonForWebsites(accountWebsitesUri($account, $website))->assertNoContent();
+
+    expect(Website::withTrashed()->find($website->id)?->deleted_at)->not->toBeNull();
+});
+
+test('spatie team context is restored after successful website delete', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account');
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Example',
+        'subdomain' => 'example',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    $registrar = app(PermissionRegistrar::class);
+    $registrar->setPermissionsTeamId(999);
+
+    statefulDeleteJsonForWebsites(accountWebsitesUri($account, $website))->assertNoContent();
+
+    expect($registrar->getPermissionsTeamId())->toBe(999);
+});
+
+test('spatie team context is restored after website delete policy denial', function () {
+    $user = createWebsiteManagementUser();
+    $account = attachWebsiteMembership($user, 'Ada Account', ['account.view', 'website.view']);
+    $website = Website::query()->create([
+        'account_id' => $account->id,
+        'name' => 'Example',
+        'subdomain' => 'example',
+        'status' => 'draft',
+        'timezone' => 'UTC',
+    ]);
+
+    loginWebsiteManagementUser($user);
+
+    $registrar = app(PermissionRegistrar::class);
+    $registrar->setPermissionsTeamId(999);
+
+    statefulDeleteJsonForWebsites(accountWebsitesUri($account, $website))->assertForbidden();
 
     expect($registrar->getPermissionsTeamId())->toBe(999);
 });

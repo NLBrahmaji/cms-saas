@@ -23,6 +23,7 @@ Route::middleware(['auth:sanctum', 'account.member'])->scopeBindings()->group(fu
     Route::post('/accounts/{account}/websites', [WebsiteController::class, 'store']);
     Route::get('/accounts/{account}/websites/{website}', [WebsiteController::class, 'show']);
     Route::patch('/accounts/{account}/websites/{website}', [WebsiteController::class, 'update']);
+    Route::delete('/accounts/{account}/websites/{website}', [WebsiteController::class, 'destroy']);
 
     Route::get('/accounts/{account}/websites/{website}/settings', [WebsiteSettingController::class, 'show']);
     Route::patch('/accounts/{account}/websites/{website}/settings', [WebsiteSettingController::class, 'update']);

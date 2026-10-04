@@ -12,6 +12,7 @@ use App\Support\Website\WebsiteSubdomainAllocator;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 class WebsiteController extends Controller
@@ -57,6 +58,15 @@ class WebsiteController extends Controller
         }
 
         return new WebsiteResource($website);
+    }
+
+    public function destroy(Account $account, Website $website): Response
+    {
+        $this->authorize('delete', $website);
+
+        $website->delete();
+
+        return response()->noContent();
     }
 
     private function createWebsiteWithSettings(Account $account, string $name): Website

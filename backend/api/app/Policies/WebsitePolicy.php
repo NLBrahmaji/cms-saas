@@ -26,4 +26,9 @@ class WebsitePolicy
     {
         return $user->can('website.update');
     }
+
+    public function delete(User $user, Website $website): bool
+    {
+        return $user->can('website.delete');
+    }
 }
