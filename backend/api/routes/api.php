@@ -39,6 +39,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/accounts/{account}/websites/{website}/pages/{page}', [PageController::class, 'show']);
         Route::get('/accounts/{account}/websites/{website}/pages/{page}/sections', [PageSectionController::class, 'index']);
         Route::post('/accounts/{account}/websites/{website}/pages/{page}/sections', [PageSectionController::class, 'store']);
+        Route::put('/accounts/{account}/websites/{website}/pages/{page}/sections/order', [PageSectionController::class, 'reorder']);
         Route::patch('/accounts/{account}/websites/{website}/pages/{page}/sections/{section}/content', [PageSectionController::class, 'updateContent']);
         Route::patch('/accounts/{account}/websites/{website}/pages/{page}/sections/{section}', [PageSectionController::class, 'update']);
         Route::patch('/accounts/{account}/websites/{website}/pages/{page}', [PageController::class, 'update']);

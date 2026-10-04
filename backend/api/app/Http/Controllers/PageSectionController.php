@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Page\ReorderPageSectionsRequest;
 use App\Http\Requests\Page\StorePageSectionRequest;
 use App\Http\Requests\Page\UpdatePageSectionContentRequest;
 use App\Http\Requests\Page\UpdatePageSectionRequest;
@@ -14,6 +15,7 @@ use App\Models\Website;
 use App\Support\Page\PageMissingDraftException;
 use App\Support\Page\PageSectionContentUpdater;
 use App\Support\Page\PageSectionCreator;
+use App\Support\Page\PageSectionReorderer;
 use App\Support\Page\PageSectionUpdater;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -24,6 +26,7 @@ class PageSectionController extends Controller
         private readonly PageSectionCreator $pageSectionCreator,
         private readonly PageSectionContentUpdater $pageSectionContentUpdater,
         private readonly PageSectionUpdater $pageSectionUpdater,
+        private readonly PageSectionReorderer $pageSectionReorderer,
     ) {}
 
     public function index(Account $account, Website $website, Page $page): AnonymousResourceCollection
@@ -101,5 +104,20 @@ class PageSectionController extends Controller
         );
 
         return new PageSectionResource($updatedSection);
+    }
+
+    public function reorder(
+        ReorderPageSectionsRequest $request,
+        Account $account,
+        Website $website,
+        Page $page,
+    ): AnonymousResourceCollection {
+        $sections = $this->pageSectionReorderer->reorder(
+            $page,
+            $request->user(),
+            $request->sectionIds(),
+        );
+
+        return PageSectionResource::collection($sections);
     }
 }
