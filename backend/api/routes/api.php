@@ -42,6 +42,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/accounts/{account}/websites/{website}/navigations/{navigation}', [NavigationController::class, 'show']);
         Route::get('/accounts/{account}/websites/{website}/navigations/{navigation}/items', [NavigationItemController::class, 'index']);
         Route::post('/accounts/{account}/websites/{website}/navigations/{navigation}/items', [NavigationItemController::class, 'store']);
+        Route::put('/accounts/{account}/websites/{website}/navigations/{navigation}/items/order', [NavigationItemController::class, 'reorder']);
         Route::patch('/accounts/{account}/websites/{website}/navigations/{navigation}/items/{item}', [NavigationItemController::class, 'update']);
 
         Route::get('/accounts/{account}/websites/{website}/pages', [PageController::class, 'index']);
