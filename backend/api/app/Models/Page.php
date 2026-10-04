@@ -49,4 +49,14 @@ class Page extends Model
         $this->draft_version_id = $version->id;
         $this->save();
     }
+
+    public function assignPublishedVersion(PageVersion $version): void
+    {
+        if ((int) $version->page_id !== (int) $this->id) {
+            throw new \InvalidArgumentException('Published version must belong to this page.');
+        }
+
+        $this->published_version_id = $version->id;
+        $this->save();
+    }
 }

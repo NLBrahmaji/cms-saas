@@ -31,4 +31,9 @@ class PagePolicy
     {
         return $user->can('page.delete');
     }
+
+    public function publish(User $user, Page $page): bool
+    {
+        return $user->can('page.publish');
+    }
 }

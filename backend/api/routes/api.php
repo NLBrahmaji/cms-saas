@@ -35,5 +35,6 @@ Route::prefix('v1')->group(function () {
         Route::get('/accounts/{account}/websites/{website}/pages/{page}', [PageController::class, 'show']);
         Route::patch('/accounts/{account}/websites/{website}/pages/{page}', [PageController::class, 'update']);
         Route::delete('/accounts/{account}/websites/{website}/pages/{page}', [PageController::class, 'destroy']);
+        Route::post('/accounts/{account}/websites/{website}/pages/{page}/publish', [PageController::class, 'publish']);
     });
 });

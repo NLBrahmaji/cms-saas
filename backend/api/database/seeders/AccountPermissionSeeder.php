@@ -25,6 +25,7 @@ class AccountPermissionSeeder extends Seeder
         'page.create',
         'page.update',
         'page.delete',
+        'page.publish',
     ];
 
     public function run(): void

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Page\PublishPageRequest;
 use App\Http\Requests\Page\StorePageRequest;
 use App\Http\Requests\Page\UpdatePageRequest;
 use App\Http\Resources\Page\PageResource;
@@ -11,6 +12,7 @@ use App\Models\PageVersion;
 use App\Models\User;
 use App\Models\Website;
 use App\Support\Page\PageDraftMetadataUpdater;
+use App\Support\Page\PagePublisher;
 use App\Support\Page\PageSlugAllocator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -22,6 +24,7 @@ class PageController extends Controller
     public function __construct(
         private readonly PageSlugAllocator $slugAllocator,
         private readonly PageDraftMetadataUpdater $draftMetadataUpdater,
+        private readonly PagePublisher $pagePublisher,
     ) {}
 
     public function index(Account $account, Website $website): AnonymousResourceCollection
@@ -80,6 +83,13 @@ class PageController extends Controller
         $page->delete();
 
         return response()->noContent();
+    }
+
+    public function publish(PublishPageRequest $request, Account $account, Website $website, Page $page): PageResource
+    {
+        $page = $this->pagePublisher->publish($website, $page, $request->user());
+
+        return new PageResource($page);
     }
 
     private function createPage(Website $website, User $user, string $name): Page
