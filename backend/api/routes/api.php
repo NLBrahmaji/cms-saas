@@ -40,6 +40,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/accounts/{account}/websites/{website}/pages/{page}/sections', [PageSectionController::class, 'index']);
         Route::post('/accounts/{account}/websites/{website}/pages/{page}/sections', [PageSectionController::class, 'store']);
         Route::patch('/accounts/{account}/websites/{website}/pages/{page}/sections/{section}/content', [PageSectionController::class, 'updateContent']);
+        Route::patch('/accounts/{account}/websites/{website}/pages/{page}/sections/{section}', [PageSectionController::class, 'update']);
         Route::patch('/accounts/{account}/websites/{website}/pages/{page}', [PageController::class, 'update']);
         Route::delete('/accounts/{account}/websites/{website}/pages/{page}', [PageController::class, 'destroy']);
         Route::post('/accounts/{account}/websites/{website}/pages/{page}/publish', [PageController::class, 'publish']);

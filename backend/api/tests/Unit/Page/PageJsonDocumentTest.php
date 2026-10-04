@@ -1,13 +1,13 @@
 <?php
 
-use App\Support\Page\PageSectionContentDocument;
+use App\Support\Page\PageJsonDocument;
 
 test('non-empty legacy list root does not equal empty object document', function () {
     $legacy = [['title' => 'Legacy']];
     $empty = [];
 
-    expect(PageSectionContentDocument::equals(
-        PageSectionContentDocument::normalizeForComparison($legacy),
+    expect(PageJsonDocument::equals(
+        PageJsonDocument::normalizeForComparison($legacy),
         $empty,
     ))->toBeFalse();
 });
@@ -29,7 +29,7 @@ test('canonical equality ignores object key order at root and nested levels', fu
         ],
     ];
 
-    expect(PageSectionContentDocument::equals($left, $right))->toBeTrue();
+    expect(PageJsonDocument::equals($left, $right))->toBeTrue();
 });
 
 test('canonical equality preserves array order significance', function () {
@@ -47,5 +47,5 @@ test('canonical equality preserves array order significance', function () {
         ],
     ];
 
-    expect(PageSectionContentDocument::equals($left, $right))->toBeFalse();
+    expect(PageJsonDocument::equals($left, $right))->toBeFalse();
 });

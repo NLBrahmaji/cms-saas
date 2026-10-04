@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Page\StorePageSectionRequest;
 use App\Http\Requests\Page\UpdatePageSectionContentRequest;
+use App\Http\Requests\Page\UpdatePageSectionRequest;
 use App\Http\Resources\Page\PageSectionResource;
 use App\Models\Account;
 use App\Models\Page;
@@ -13,6 +14,7 @@ use App\Models\Website;
 use App\Support\Page\PageMissingDraftException;
 use App\Support\Page\PageSectionContentUpdater;
 use App\Support\Page\PageSectionCreator;
+use App\Support\Page\PageSectionUpdater;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -21,6 +23,7 @@ class PageSectionController extends Controller
     public function __construct(
         private readonly PageSectionCreator $pageSectionCreator,
         private readonly PageSectionContentUpdater $pageSectionContentUpdater,
+        private readonly PageSectionUpdater $pageSectionUpdater,
     ) {}
 
     public function index(Account $account, Website $website, Page $page): AnonymousResourceCollection
@@ -78,6 +81,23 @@ class PageSectionController extends Controller
             $request->user(),
             $section,
             $request->contentDocument(),
+        );
+
+        return new PageSectionResource($updatedSection);
+    }
+
+    public function update(
+        UpdatePageSectionRequest $request,
+        Account $account,
+        Website $website,
+        Page $page,
+        string $section,
+    ): PageSectionResource {
+        $updatedSection = $this->pageSectionUpdater->update(
+            $page,
+            $request->user(),
+            $section,
+            $request->sectionChanges(),
         );
 
         return new PageSectionResource($updatedSection);

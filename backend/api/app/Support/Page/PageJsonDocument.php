@@ -2,27 +2,27 @@
 
 namespace App\Support\Page;
 
-class PageSectionContentDocument
+class PageJsonDocument
 {
-    public static function normalizeForComparison(mixed $content): mixed
+    public static function normalizeForComparison(mixed $document): mixed
     {
-        if ($content === null) {
+        if ($document === null) {
             return [];
         }
 
-        if (! is_array($content)) {
+        if (! is_array($document)) {
             return [];
         }
 
-        if ($content === []) {
+        if ($document === []) {
             return [];
         }
 
-        if (array_is_list($content)) {
-            return $content;
+        if (array_is_list($document)) {
+            return $document;
         }
 
-        return $content;
+        return $document;
     }
 
     public static function equals(mixed $left, mixed $right): bool

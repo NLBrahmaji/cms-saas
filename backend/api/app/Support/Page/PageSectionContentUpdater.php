@@ -30,9 +30,9 @@ class PageSectionContentUpdater
             $draft = $this->resolveCurrentDraft($lockedPage);
             $section = $this->sectionResolver->resolve($draft, $publicId);
 
-            $currentContent = PageSectionContentDocument::normalizeForComparison($section->content?->content);
+            $currentContent = PageJsonDocument::normalizeForComparison($section->content?->content);
 
-            if (PageSectionContentDocument::equals($currentContent, $content)) {
+            if (PageJsonDocument::equals($currentContent, $content)) {
                 return $section;
             }
 
