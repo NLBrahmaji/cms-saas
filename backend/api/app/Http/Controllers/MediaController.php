@@ -8,16 +8,20 @@ use App\Http\Resources\Media\MediaResource;
 use App\Models\Account;
 use App\Models\Media;
 use App\Models\Website;
+use App\Support\Media\MediaDeleter;
 use App\Support\Media\MediaMetadataUpdater;
 use App\Support\Media\MediaUploader;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 
 class MediaController extends Controller
 {
     public function __construct(
         private readonly MediaUploader $mediaUploader,
         private readonly MediaMetadataUpdater $mediaMetadataUpdater,
+        private readonly MediaDeleter $mediaDeleter,
     ) {}
 
     public function index(Account $account, Website $website): AnonymousResourceCollection
@@ -64,5 +68,18 @@ class MediaController extends Controller
         );
 
         return new MediaResource($media);
+    }
+
+    public function destroy(
+        Request $request,
+        Account $account,
+        Website $website,
+        Media $media,
+    ): Response {
+        $this->authorize('delete', $media);
+
+        $this->mediaDeleter->delete($media);
+
+        return response()->noContent();
     }
 }

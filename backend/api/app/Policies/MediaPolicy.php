@@ -26,4 +26,9 @@ class MediaPolicy
     {
         return $user->can('media.update');
     }
+
+    public function delete(User $user, Media $media): bool
+    {
+        return $user->can('media.delete');
+    }
 }
