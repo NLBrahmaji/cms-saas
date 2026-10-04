@@ -52,6 +52,11 @@ class Website extends Model
         return $this->hasMany(Page::class);
     }
 
+    public function navigations(): HasMany
+    {
+        return $this->hasMany(Navigation::class);
+    }
+
     public function homePage(): BelongsTo
     {
         return $this->belongsTo(Page::class, 'home_page_id');
