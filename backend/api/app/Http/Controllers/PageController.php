@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Page\StorePageRequest;
+use App\Http\Requests\Page\UpdatePageRequest;
 use App\Http\Resources\Page\PageResource;
 use App\Models\Account;
 use App\Models\Page;
 use App\Models\PageVersion;
 use App\Models\User;
 use App\Models\Website;
+use App\Support\Page\PageDraftMetadataUpdater;
 use App\Support\Page\PageSlugAllocator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -18,6 +20,7 @@ class PageController extends Controller
 {
     public function __construct(
         private readonly PageSlugAllocator $slugAllocator,
+        private readonly PageDraftMetadataUpdater $draftMetadataUpdater,
     ) {}
 
     public function index(Account $account, Website $website): AnonymousResourceCollection
@@ -48,6 +51,23 @@ class PageController extends Controller
         $this->authorize('view', $page);
 
         $page->loadMissing('draftVersion');
+
+        return new PageResource($page);
+    }
+
+    public function update(UpdatePageRequest $request, Account $account, Website $website, Page $page): PageResource
+    {
+        $changes = [];
+
+        if ($request->has('name')) {
+            $changes['name'] = $request->string('name')->toString();
+        }
+
+        if ($request->has('slug')) {
+            $changes['slug'] = $request->string('slug')->toString();
+        }
+
+        $page = $this->draftMetadataUpdater->update($page, $request->user(), $changes);
 
         return new PageResource($page);
     }

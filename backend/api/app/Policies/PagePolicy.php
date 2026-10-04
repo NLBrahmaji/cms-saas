@@ -21,4 +21,9 @@ class PagePolicy
     {
         return $user->can('page.create');
     }
+
+    public function update(User $user, Page $page): bool
+    {
+        return $user->can('page.update');
+    }
 }
