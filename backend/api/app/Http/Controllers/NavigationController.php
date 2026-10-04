@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Navigation\PublishNavigationRequest;
 use App\Http\Requests\Navigation\StoreNavigationRequest;
+use App\Http\Requests\Navigation\UpdateNavigationRequest;
 use App\Http\Resources\Navigation\NavigationResource;
 use App\Models\Account;
 use App\Models\Navigation;
 use App\Models\Website;
 use App\Support\Navigation\NavigationCreator;
+use App\Support\Navigation\NavigationMetadataUpdater;
 use App\Support\Navigation\NavigationPublisher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -18,6 +20,7 @@ class NavigationController extends Controller
     public function __construct(
         private readonly NavigationCreator $navigationCreator,
         private readonly NavigationPublisher $navigationPublisher,
+        private readonly NavigationMetadataUpdater $navigationMetadataUpdater,
     ) {}
 
     public function index(Account $account, Website $website): AnonymousResourceCollection
@@ -48,6 +51,20 @@ class NavigationController extends Controller
     public function show(Account $account, Website $website, Navigation $navigation): NavigationResource
     {
         $this->authorize('view', $navigation);
+
+        return new NavigationResource($navigation);
+    }
+
+    public function update(
+        UpdateNavigationRequest $request,
+        Account $account,
+        Website $website,
+        Navigation $navigation,
+    ): NavigationResource {
+        $navigation = $this->navigationMetadataUpdater->update(
+            $navigation,
+            $request->metadataChanges(),
+        );
 
         return new NavigationResource($navigation);
     }
