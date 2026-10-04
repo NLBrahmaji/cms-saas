@@ -28,6 +28,7 @@ class PageSeoEffectiveState
         'meta_description',
         'og_title',
         'og_description',
+        'og_image_id',
         'canonical_url',
         'robots_index',
         'robots_follow',

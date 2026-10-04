@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Page;
 
+use App\Models\Website;
 use App\Rules\HttpHttpsAbsoluteUrl;
 use App\Support\Page\PageSeoEffectiveState;
+use App\Support\Page\PageSeoOgImageResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Validator as ValidatorInstance;
@@ -55,11 +57,7 @@ class UpdatePageSeoRequest extends FormRequest
             $unknown = array_diff(array_keys($properties), $allowed);
 
             foreach ($unknown as $field) {
-                $message = $field === 'og_image_id'
-                    ? 'This field is not supported yet.'
-                    : 'This field is not allowed.';
-
-                $validator->errors()->add($field, $message);
+                $validator->errors()->add($field, 'This field is not allowed.');
             }
 
             if ($properties === []) {
@@ -74,12 +72,40 @@ class UpdatePageSeoRequest extends FormRequest
 
             $changes = [];
 
+            $website = $this->route('website');
+            $ogImageResolver = app(PageSeoOgImageResolver::class);
+
             foreach ($allowed as $field) {
                 if (! array_key_exists($field, $properties)) {
                     continue;
                 }
 
                 $value = $properties[$field];
+
+                if ($field === 'og_image_id') {
+                    if ($value === null) {
+                        $changes['og_image_id'] = null;
+
+                        continue;
+                    }
+
+                    if (! is_int($value)) {
+                        $validator->errors()->add('og_image_id', 'The og image id field must be an integer.');
+
+                        continue;
+                    }
+
+                    if (! $website instanceof Website
+                        || ! $ogImageResolver->isSelectableOgImage($website, $value)) {
+                        $validator->errors()->add('og_image_id', 'The selected og image id is invalid.');
+
+                        continue;
+                    }
+
+                    $changes['og_image_id'] = $value;
+
+                    continue;
+                }
 
                 if (in_array($field, ['robots_index', 'robots_follow'], true)) {
                     if ($value !== null && ! is_bool($value)) {

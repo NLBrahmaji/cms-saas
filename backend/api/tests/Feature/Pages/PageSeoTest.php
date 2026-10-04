@@ -2,6 +2,7 @@
 
 use App\Models\Account;
 use App\Models\AccountMember;
+use App\Models\Media;
 use App\Models\Page;
 use App\Models\PageVersion;
 use App\Models\PageVersionSeoSetting;
@@ -177,14 +178,14 @@ function createPageSeoPage(Website $website, User $creator): Page
     return $page->refresh();
 }
 
-function createPageSeoMedia(Website $website, User $user): int
+function createPageSeoMedia(Website $website, User $user, string $mimeType = 'image/jpeg'): int
 {
     return (int) DB::table('media')->insertGetId([
         'website_id' => $website->id,
         'disk' => 'public',
-        'path' => 'images/hero.jpg',
+        'path' => 'images/hero-'.uniqid().'.jpg',
         'original_name' => 'hero.jpg',
-        'mime_type' => 'image/jpeg',
+        'mime_type' => $mimeType,
         'extension' => 'jpg',
         'size' => 1024,
         'source' => 'upload',
@@ -192,6 +193,11 @@ function createPageSeoMedia(Website $website, User $user): int
         'created_at' => now(),
         'updated_at' => now(),
     ]);
+}
+
+function softDeletePageSeoMedia(int $mediaId): void
+{
+    Media::query()->whereKey($mediaId)->delete();
 }
 
 function createPageSeoRow(PageVersion $version, array $overrides = []): PageVersionSeoSetting
@@ -699,4 +705,319 @@ test('page seo patch returns not found for wrong tenant context', function () {
     statefulPatchPageSeo('/v1/accounts/'.$account->id.'/websites/'.$otherWebsite->id.'/pages/'.$page->id.'/seo', [
         'meta_title' => 'Nope',
     ])->assertNotFound();
+});
+
+test('page seo patch accepts active same website raster og image mime types', function (string $mimeType) {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $page = createPageSeoPage($website, $user);
+    $mediaId = createPageSeoMedia($website, $user, $mimeType);
+    $uri = pageSeoUri($account, $website, $page);
+
+    loginPageSeoUser($user);
+
+    statefulPatchPageSeo($uri, ['og_image_id' => $mediaId])
+        ->assertOk()
+        ->assertJsonPath('data.og_image_id', $mediaId);
+})->with([
+    'jpeg' => ['image/jpeg'],
+    'png' => ['image/png'],
+    'webp' => ['image/webp'],
+    'gif' => ['image/gif'],
+]);
+
+test('page seo patch rejects invalid og image targets', function () {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $otherWebsite = createPageSeoWebsite($account);
+    $otherUser = createPageSeoUser();
+    $otherAccount = attachPageSeoMembership($otherUser);
+    $foreignWebsite = createPageSeoWebsite($otherAccount);
+    $page = createPageSeoPage($website, $user);
+    $uri = pageSeoUri($account, $website, $page);
+
+    $sameAccountOtherSite = createPageSeoMedia($otherWebsite, $user);
+    $foreignMedia = createPageSeoMedia($foreignWebsite, $otherUser);
+    $deletedMedia = createPageSeoMedia($website, $user);
+    softDeletePageSeoMedia($deletedMedia);
+    $unsupportedMime = createPageSeoMedia($website, $user, 'application/pdf');
+
+    loginPageSeoUser($user);
+
+    statefulPatchPageSeo($uri, ['og_image_id' => 999999])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['og_image_id']);
+
+    statefulPatchPageSeo($uri, ['og_image_id' => $sameAccountOtherSite])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['og_image_id']);
+
+    statefulPatchPageSeo($uri, ['og_image_id' => $foreignMedia])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['og_image_id']);
+
+    statefulPatchPageSeo($uri, ['og_image_id' => $deletedMedia])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['og_image_id']);
+
+    statefulPatchPageSeo($uri, ['og_image_id' => $unsupportedMime])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['og_image_id']);
+
+    statefulPatchPageSeoRaw($uri, '{"og_image_id":"1"}')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['og_image_id']);
+
+    statefulPatchPageSeoRaw($uri, '{"og_image_id":{"id":1}}')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['og_image_id']);
+});
+
+test('page seo patch og image null on missing row is semantic no op', function () {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $page = createPageSeoPage($website, $user);
+    $versionOne = $page->draft_version_id;
+
+    loginPageSeoUser($user);
+
+    statefulPatchPageSeoRaw(pageSeoUri($account, $website, $page), '{"og_image_id":null}')
+        ->assertOk();
+
+    $page->refresh();
+
+    expect(PageVersionSeoSetting::query()->count())->toBe(0)
+        ->and($page->draft_version_id)->toBe($versionOne)
+        ->and(PageVersion::query()->count())->toBe(1);
+});
+
+test('page seo patch same active og image id is semantic no op on canonical published page', function () {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $page = createPageSeoPage($website, $user);
+    $versionOne = $page->draftVersion;
+    $mediaId = createPageSeoMedia($website, $user);
+    $seo = createPageSeoRow($versionOne, ['og_image_id' => $mediaId]);
+
+    simulatePageSeoPublished($page, $user);
+
+    loginPageSeoUser($user);
+
+    $updatedAt = $seo->updated_at;
+
+    statefulPatchPageSeo(pageSeoUri($account, $website, $page), ['og_image_id' => $mediaId])
+        ->assertOk()
+        ->assertJsonPath('data.og_image_id', $mediaId);
+
+    expect(PageVersion::query()->count())->toBe(1)
+        ->and($seo->refresh()->updated_at->eq($updatedAt))->toBeTrue();
+});
+
+test('page seo patch explicit stale og image id after media soft delete is not no op', function () {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $page = createPageSeoPage($website, $user);
+    $mediaId = createPageSeoMedia($website, $user);
+
+    createPageSeoRow($page->draftVersion, ['og_image_id' => $mediaId]);
+    softDeletePageSeoMedia($mediaId);
+
+    loginPageSeoUser($user);
+
+    statefulPatchPageSeo(pageSeoUri($account, $website, $page), ['og_image_id' => $mediaId])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['og_image_id']);
+});
+
+test('unpublished page seo og image patch mutates version one', function () {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $page = createPageSeoPage($website, $user);
+    $mediaId = createPageSeoMedia($website, $user);
+
+    loginPageSeoUser($user);
+
+    statefulPatchPageSeo(pageSeoUri($account, $website, $page), ['og_image_id' => $mediaId])
+        ->assertOk();
+
+    expect(PageVersion::query()->count())->toBe(1)
+        ->and(PageVersionSeoSetting::query()->where('page_version_id', $page->draft_version_id)->value('og_image_id'))
+        ->toBe($mediaId);
+});
+
+test('published canonical page og image change clones to version two', function () {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $page = createPageSeoPage($website, $user);
+    $versionOne = $page->draftVersion;
+    $imageA = createPageSeoMedia($website, $user);
+    $imageB = createPageSeoMedia($website, $user);
+
+    createPageSeoRow($versionOne, ['og_image_id' => $imageA, 'meta_title' => 'Published']);
+    simulatePageSeoPublished($page, $user);
+
+    loginPageSeoUser($user);
+
+    statefulPatchPageSeo(pageSeoUri($account, $website, $page), ['og_image_id' => $imageB])
+        ->assertOk();
+
+    $versionTwo = PageVersion::query()->where('version', 2)->firstOrFail();
+    $v1Seo = PageVersionSeoSetting::query()->where('page_version_id', $versionOne->id)->firstOrFail();
+    $v2Seo = PageVersionSeoSetting::query()->where('page_version_id', $versionTwo->id)->firstOrFail();
+
+    expect($v1Seo->og_image_id)->toBe($imageA)
+        ->and($v2Seo->og_image_id)->toBe($imageB)
+        ->and($v1Seo->meta_title)->toBe('Published');
+});
+
+test('ahead draft og image patch mutates version two without creating version three', function () {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $page = createPageSeoPage($website, $user);
+    $versionOne = $page->draftVersion;
+    $imageA = createPageSeoMedia($website, $user);
+    $imageB = createPageSeoMedia($website, $user);
+    $imageC = createPageSeoMedia($website, $user);
+
+    createPageSeoRow($versionOne, ['og_image_id' => $imageA]);
+    simulatePageSeoPublished($page, $user);
+
+    $versionTwo = app(PageVersionSnapshotCloner::class)->cloneToNewDraftVersion($page, $versionOne, $user);
+    $page->assignDraftVersion($versionTwo);
+    PageVersionSeoSetting::query()->where('page_version_id', $versionTwo->id)->firstOrFail()->update(['og_image_id' => $imageB]);
+
+    loginPageSeoUser($user);
+
+    statefulPatchPageSeo(pageSeoUri($account, $website, $page), ['og_image_id' => $imageC])
+        ->assertOk();
+
+    expect(PageVersion::query()->count())->toBe(2)
+        ->and(PageVersionSeoSetting::query()->where('page_version_id', $versionOne->id)->first()?->og_image_id)->toBe($imageA)
+        ->and(PageVersionSeoSetting::query()->where('page_version_id', $versionTwo->id)->first()?->og_image_id)->toBe($imageC);
+});
+
+test('page seo patch stale historical og image id allows unrelated field updates', function () {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $page = createPageSeoPage($website, $user);
+    $mediaId = createPageSeoMedia($website, $user);
+    $seo = createPageSeoRow($page->draftVersion, [
+        'og_image_id' => $mediaId,
+        'meta_title' => 'Old',
+    ]);
+
+    softDeletePageSeoMedia($mediaId);
+
+    loginPageSeoUser($user);
+
+    statefulGetPageSeo(pageSeoUri($account, $website, $page))
+        ->assertOk()
+        ->assertJsonPath('data.og_image_id', $mediaId);
+
+    statefulPatchPageSeo(pageSeoUri($account, $website, $page), ['meta_title' => 'New'])
+        ->assertOk()
+        ->assertJsonPath('data.meta_title', 'New')
+        ->assertJsonPath('data.og_image_id', $mediaId);
+
+    expect($seo->refresh()->og_image_id)->toBe($mediaId);
+});
+
+test('page seo combined patch with invalid og image rejects before mutation', function () {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $page = createPageSeoPage($website, $user);
+    $versionOne = $page->draftVersion;
+    createPageSeoRow($versionOne, ['meta_title' => 'Published']);
+    simulatePageSeoPublished($page, $user);
+
+    loginPageSeoUser($user);
+
+    statefulPatchPageSeo(pageSeoUri($account, $website, $page), [
+        'meta_title' => 'Changed',
+        'og_image_id' => 999999,
+    ])->assertUnprocessable();
+
+    $page->refresh();
+
+    expect(PageVersion::query()->count())->toBe(1)
+        ->and(PageVersionSeoSetting::query()->where('page_version_id', $versionOne->id)->first()?->meta_title)->toBe('Published');
+});
+
+test('page seo combined patch with valid og image updates once', function () {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $page = createPageSeoPage($website, $user);
+    $versionOne = $page->draftVersion;
+    $mediaId = createPageSeoMedia($website, $user);
+
+    simulatePageSeoPublished($page, $user);
+
+    loginPageSeoUser($user);
+
+    statefulPatchPageSeo(pageSeoUri($account, $website, $page), [
+        'meta_title' => 'Draft SEO',
+        'og_image_id' => $mediaId,
+    ])->assertOk();
+
+    expect(PageVersion::query()->count())->toBe(2)
+        ->and(PageVersionSeoSetting::query()->where('page_version_id', $versionOne->id)->count())->toBe(0);
+
+    $versionTwo = PageVersion::query()->where('version', 2)->firstOrFail();
+    $v2Seo = PageVersionSeoSetting::query()->where('page_version_id', $versionTwo->id)->firstOrFail();
+
+    expect($v2Seo->meta_title)->toBe('Draft SEO')
+        ->and($v2Seo->og_image_id)->toBe($mediaId);
+});
+
+test('page seo publish promotes draft og image snapshot', function () {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $page = createPageSeoPage($website, $user);
+    $versionOne = $page->draftVersion;
+    $imagePublished = createPageSeoMedia($website, $user);
+    $imageDraft = createPageSeoMedia($website, $user);
+
+    createPageSeoRow($versionOne, ['og_image_id' => $imagePublished]);
+    simulatePageSeoPublished($page, $user);
+
+    loginPageSeoUser($user);
+
+    statefulPatchPageSeo(pageSeoUri($account, $website, $page), ['og_image_id' => $imageDraft])
+        ->assertOk();
+
+    statefulPostPageSeoPublish(pageSeoPublishUri($account, $website, $page))->assertOk();
+
+    $page->refresh();
+    $versionTwo = PageVersion::query()->where('version', 2)->firstOrFail();
+
+    expect($page->published_version_id)->toBe($versionTwo->id)
+        ->and(PageVersionSeoSetting::query()->where('page_version_id', $versionOne->id)->first()?->og_image_id)->toBe($imagePublished)
+        ->and(PageVersionSeoSetting::query()->where('page_version_id', $versionTwo->id)->first()?->og_image_id)->toBe($imageDraft);
+});
+
+test('page seo patch clears og image id explicitly', function () {
+    $user = createPageSeoUser();
+    $account = attachPageSeoMembership($user);
+    $website = createPageSeoWebsite($account);
+    $page = createPageSeoPage($website, $user);
+    $mediaId = createPageSeoMedia($website, $user);
+    createPageSeoRow($page->draftVersion, ['og_image_id' => $mediaId]);
+
+    loginPageSeoUser($user);
+
+    statefulPatchPageSeoRaw(pageSeoUri($account, $website, $page), '{"og_image_id":null}')
+        ->assertOk()
+        ->assertJsonPath('data.og_image_id', null);
 });
