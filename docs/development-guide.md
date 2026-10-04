@@ -167,6 +167,21 @@ and:
 
 because browser cookie/origin behavior differs between them.
 
+Start the Laravel API from `backend/api` with:
+
+```shell
+composer serve
+```
+
+That runs `php artisan serve --no-reload --host=localhost --port=8000`.
+
+On Windows, plain `php artisan serve` (with hot reload) can strip `APP_KEY`
+from the PHP built-in server child process and cause
+`MissingAppKeyException` / “headers already sent” errors on web routes. Use
+`composer serve` or pass `--no-reload` explicitly. Prefer `localhost` over
+`127.0.0.1` for the host so Sanctum session cookies align with the dashboard
+and website SPAs.
+
 ---
 
 ## Production URL Direction
