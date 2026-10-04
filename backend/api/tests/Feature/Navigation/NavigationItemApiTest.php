@@ -34,6 +34,13 @@ test('unauthenticated navigation item requests are unauthorized', function () {
         'type' => 'url',
         'url' => '/about',
     ])->assertUnauthorized();
+
+    $draft = NavigationVersion::query()->where('navigation_id', $navigation->id)->firstOrFail();
+    $item = createNavigationItemApiItem($draft, ['url' => '/patch-target']);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'label' => 'Nope',
+    ])->assertUnauthorized();
 });
 
 test('navigation item list requires navigation view not page view', function () {
@@ -673,3 +680,466 @@ function statefulPostJsonForNavigationItems(string $uri, array $data = []): Test
 
     return $response;
 }
+
+function statefulPatchNavigationItem(string $uri, array $data = []): TestResponse
+{
+    $response = test()->withHeaders(navigationItemApiOriginHeaders())->patchJson($uri, $data);
+
+    syncNavigationItemApiCookies($response);
+
+    return $response;
+}
+
+function navigationItemUri(
+    Account $account,
+    Website $website,
+    Navigation $navigation,
+    NavigationItem|string $item,
+): string {
+    $itemId = $item instanceof NavigationItem ? $item->public_id : $item;
+
+    return navigationItemsUri($account, $website, $navigation).'/'.$itemId;
+}
+
+test('navigation item patch requires navigation update permission', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.view']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+    $item = createNavigationItemApiItem($draft, ['url' => '/about']);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'label' => 'Nope',
+    ])->assertForbidden();
+});
+
+test('navigation item patch updates label on unpublished draft', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+    $item = createNavigationItemApiItem($draft, ['url' => '/about', 'label' => 'Old']);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'label' => 'New',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.label', 'New');
+
+    expect(NavigationVersion::query()->where('navigation_id', $navigation->id)->count())->toBe(1);
+});
+
+test('navigation item patch no-op on canonical published navigation does not clone', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+    $item = createNavigationItemApiItem($draft, ['url' => '/about', 'label' => 'About']);
+
+    $navigation->assignPublishedVersion($draft);
+
+    loginNavigationItemApiUser($user);
+
+    $updatedAt = $item->updated_at;
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'label' => 'About',
+    ])->assertOk();
+
+    expect(NavigationVersion::query()->where('navigation_id', $navigation->id)->count())->toBe(1)
+        ->and($item->refresh()->updated_at->eq($updatedAt))->toBeTrue();
+});
+
+test('navigation item patch clones canonical published navigation for meaningful change', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+    $item = createNavigationItemApiItem($draft, ['url' => '/about', 'sort_order' => 3, 'label' => 'About']);
+    $navigation->assignPublishedVersion($draft);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'label' => 'Updated',
+    ])->assertOk();
+
+    $navigation->refresh();
+    $v2 = NavigationVersion::query()->where('navigation_id', $navigation->id)->where('version', 2)->firstOrFail();
+    $v1Item = NavigationItem::query()->where('navigation_version_id', $draft->id)->wherePublicId($item->public_id)->firstOrFail();
+    $v2Item = NavigationItem::query()->where('navigation_version_id', $v2->id)->wherePublicId($item->public_id)->firstOrFail();
+
+    expect($navigation->published_version_id)->toBe($draft->id)
+        ->and($navigation->draft_version_id)->toBe($v2->id)
+        ->and($v1Item->label)->toBe('About')
+        ->and($v2Item->label)->toBe('Updated')
+        ->and($v2Item->sort_order)->toBe(3)
+        ->and($v1Item->id)->not->toBe($v2Item->id);
+});
+
+test('navigation item patch transitions page to url and clears page id', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $page] = createNavigationItemApiWebsiteNavigationAndPage($account);
+    $draft = NavigationVersion::query()->where('navigation_id', $navigation->id)->firstOrFail();
+    $item = createNavigationItemApiItem($draft, [
+        'type' => NavigationItemType::Page,
+        'page_id' => $page->id,
+        'url' => null,
+    ]);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'type' => 'url',
+        'url' => '/team',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.type', 'url')
+        ->assertJsonPath('data.url', '/team')
+        ->assertJsonPath('data.page_id', null);
+
+    expect($item->refresh()->page_id)->toBeNull()
+        ->and($item->url)->toBe('/team');
+});
+
+test('navigation item patch rejects contradictory type transition payload', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $page] = createNavigationItemApiWebsiteNavigationAndPage($account);
+    $draft = NavigationVersion::query()->where('navigation_id', $navigation->id)->firstOrFail();
+    $item = createNavigationItemApiItem($draft, [
+        'type' => NavigationItemType::Page,
+        'page_id' => $page->id,
+        'url' => null,
+    ]);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'type' => 'url',
+        'url' => '/team',
+        'page_id' => $page->id,
+    ])->assertUnprocessable();
+});
+
+test('navigation item patch move under parent appends sort order in destination siblings', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+
+    $rootA = createNavigationItemApiItem($draft, ['url' => '/a', 'sort_order' => 0]);
+    $moving = createNavigationItemApiItem($draft, ['url' => '/b', 'sort_order' => 5]);
+    $parent = createNavigationItemApiItem($draft, ['url' => '/p', 'sort_order' => 10]);
+    createNavigationItemApiItem($draft, ['url' => '/c', 'parent_id' => $parent->id, 'sort_order' => 2]);
+    createNavigationItemApiItem($draft, ['url' => '/d', 'parent_id' => $parent->id, 'sort_order' => 8]);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $moving), [
+        'parent_id' => $parent->public_id,
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.sort_order', 9);
+
+    expect($rootA->refresh()->sort_order)->toBe(0);
+});
+
+test('navigation item patch rejects moving item under its descendant', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+
+    $a = createNavigationItemApiItem($draft, ['url' => '/a']);
+    $b = createNavigationItemApiItem($draft, ['url' => '/b', 'parent_id' => $a->id]);
+    $c = createNavigationItemApiItem($draft, ['url' => '/c', 'parent_id' => $b->id]);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $a), [
+        'parent_id' => $c->public_id,
+    ])->assertUnprocessable()->assertJsonValidationErrors(['parent_id']);
+});
+
+test('navigation item patch re-resolves parent after published clone', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+
+    $parent = createNavigationItemApiItem($draft, ['url' => '/parent']);
+    $child = createNavigationItemApiItem($draft, ['url' => '/child', 'parent_id' => $parent->id]);
+    $navigation->assignPublishedVersion($draft);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $child), [
+        'label' => 'Child updated',
+    ])->assertOk();
+
+    $v2 = NavigationVersion::query()->where('navigation_id', $navigation->id)->where('version', 2)->firstOrFail();
+    $clonedParent = NavigationItem::query()->where('navigation_version_id', $v2->id)->wherePublicId($parent->public_id)->firstOrFail();
+    $clonedChild = NavigationItem::query()->where('navigation_version_id', $v2->id)->wherePublicId($child->public_id)->firstOrFail();
+
+    expect($clonedChild->parent_id)->toBe($clonedParent->id)
+        ->and($clonedChild->parent_id)->not->toBe($parent->id);
+});
+
+test('navigation item patch returns not found for unknown route item id', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation] = createNavigationItemApiWebsiteAndNavigation($account);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, (string) Str::uuid()), [
+        'label' => 'Ghost',
+    ])->assertNotFound();
+});
+
+test('invalid parent on published navigation patch does not clone', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+    $item = createNavigationItemApiItem($draft, ['url' => '/item']);
+    $navigation->assignPublishedVersion($draft);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'parent_id' => (string) Str::uuid(),
+    ])->assertUnprocessable();
+
+    expect(NavigationVersion::query()->where('navigation_id', $navigation->id)->count())->toBe(1);
+});
+
+test('navigation item patch on ahead draft mutates v2 without creating v3', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    $actor = User::query()->findOrFail($account->owner_id);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+
+    $v1 = $draft;
+    $v2 = createNavigationItemApiVersion($navigation, $actor, 2);
+    $item = createNavigationItemApiItem($v2, ['url' => '/draft-item', 'label' => 'Draft']);
+    $navigation->assignPublishedVersion($v1);
+    $navigation->assignDraftVersion($v2);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'label' => 'Changed on v2',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.label', 'Changed on v2');
+
+    expect(NavigationVersion::query()->where('navigation_id', $navigation->id)->count())->toBe(2)
+        ->and($item->refresh()->label)->toBe('Changed on v2');
+});
+
+test('navigation item patch move preserves subtree structure', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+
+    $d = createNavigationItemApiItem($draft, ['url' => '/d']);
+    $b = createNavigationItemApiItem($draft, ['url' => '/b']);
+    $c = createNavigationItemApiItem($draft, ['url' => '/c', 'parent_id' => $b->id]);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $b), [
+        'parent_id' => $d->public_id,
+    ])->assertOk();
+
+    expect($c->refresh()->parent_id)->toBe($b->id)
+        ->and($b->refresh()->parent_id)->toBe($d->id);
+});
+
+test('navigation item patch move nested item to root appends among root siblings', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+
+    createNavigationItemApiItem($draft, ['url' => '/r0', 'sort_order' => 0]);
+    createNavigationItemApiItem($draft, ['url' => '/r5', 'sort_order' => 5]);
+    createNavigationItemApiItem($draft, ['url' => '/r20', 'sort_order' => 20]);
+    $parent = createNavigationItemApiItem($draft, ['url' => '/p', 'sort_order' => 25]);
+    $child = createNavigationItemApiItem($draft, ['url' => '/child', 'parent_id' => $parent->id, 'sort_order' => 1]);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $child), [
+        'parent_id' => null,
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.sort_order', 26)
+        ->assertJsonPath('data.parent_id', null);
+});
+
+test('navigation item patch clears label with null', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+    $item = createNavigationItemApiItem($draft, ['url' => '/x', 'label' => 'Visible']);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'label' => null,
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.label', null);
+
+    expect($item->refresh()->label)->toBeNull();
+});
+
+test('navigation item patch transitions url to page and clears url', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $page] = createNavigationItemApiWebsiteNavigationAndPage($account);
+    $draft = NavigationVersion::query()->where('navigation_id', $navigation->id)->firstOrFail();
+    $item = createNavigationItemApiItem($draft, ['url' => '/old']);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'type' => 'page',
+        'page_id' => $page->id,
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.type', 'page')
+        ->assertJsonPath('data.page_id', $page->id)
+        ->assertJsonPath('data.url', null);
+
+    expect($item->refresh()->url)->toBeNull()
+        ->and($item->page_id)->toBe($page->id);
+});
+
+test('navigation item patch rejects page from another website', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+    $otherWebsite = createNavigationItemApiWebsite($account, 'other');
+    $otherPage = Page::query()->create(['website_id' => $otherWebsite->id]);
+    $item = createNavigationItemApiItem($draft, ['url' => '/x']);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'type' => 'page',
+        'page_id' => $otherPage->id,
+    ])->assertUnprocessable()->assertJsonValidationErrors(['page_id']);
+});
+
+test('navigation item patch rejects soft deleted page target', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $page] = createNavigationItemApiWebsiteNavigationAndPage($account);
+    $draft = NavigationVersion::query()->where('navigation_id', $navigation->id)->firstOrFail();
+    $page->delete();
+    $item = createNavigationItemApiItem($draft, ['url' => '/x']);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'type' => 'page',
+        'page_id' => $page->id,
+    ])->assertUnprocessable()->assertJsonValidationErrors(['page_id']);
+});
+
+test('navigation item patch rejects empty body', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+    $item = createNavigationItemApiItem($draft, ['url' => '/x']);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [])
+        ->assertUnprocessable();
+});
+
+test('navigation item patch enforces strict open in new tab boolean', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+    $item = createNavigationItemApiItem($draft, ['url' => '/x']);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'open_in_new_tab' => 'true',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['open_in_new_tab']);
+});
+
+test('navigation item patch returns not found for malformed route item id', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation] = createNavigationItemApiWebsiteAndNavigation($account);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, 'not-a-uuid'), [
+        'label' => 'X',
+    ])->assertNotFound();
+});
+
+test('navigation item patch returns not found for historical only item public id', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    $actor = User::query()->findOrFail($account->owner_id);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+
+    $historical = createNavigationItemApiItem($draft, ['url' => '/historical']);
+    $v2 = createNavigationItemApiVersion($navigation, $actor, 2);
+    $navigation->assignPublishedVersion($draft);
+    $navigation->assignDraftVersion($v2);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $historical), [
+        'label' => 'Ghost',
+    ])->assertNotFound();
+});
+
+test('navigation item patch rolls back clone when item persistence fails', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['navigation.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+    $item = createNavigationItemApiItem($draft, ['url' => '/item', 'label' => 'Before']);
+    $navigation->assignPublishedVersion($draft);
+
+    loginNavigationItemApiUser($user);
+
+    NavigationItem::updating(function (): void {
+        throw new RuntimeException('Simulated item persistence failure');
+    });
+
+    try {
+        statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+            'label' => 'After',
+        ])->assertStatus(500);
+    } finally {
+        NavigationItem::flushEventListeners();
+    }
+
+    $navigation->refresh();
+
+    expect(NavigationVersion::query()->where('navigation_id', $navigation->id)->count())->toBe(1)
+        ->and($navigation->draft_version_id)->toBe($draft->id)
+        ->and($navigation->published_version_id)->toBe($draft->id)
+        ->and($item->refresh()->label)->toBe('Before');
+});
+
+test('navigation item patch requires navigation update not page update', function () {
+    $user = createNavigationItemApiUser();
+    $account = attachNavigationItemApiMembership($user, ['page.update']);
+    [$website, $navigation, $draft] = createNavigationItemApiWebsiteNavigationAndDraft($account);
+    $item = createNavigationItemApiItem($draft, ['url' => '/x']);
+
+    loginNavigationItemApiUser($user);
+
+    statefulPatchNavigationItem(navigationItemUri($account, $website, $navigation, $item), [
+        'label' => 'Nope',
+    ])->assertForbidden();
+});
