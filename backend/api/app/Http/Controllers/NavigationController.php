@@ -10,10 +10,13 @@ use App\Models\Account;
 use App\Models\Navigation;
 use App\Models\Website;
 use App\Support\Navigation\NavigationCreator;
+use App\Support\Navigation\NavigationDeleter;
 use App\Support\Navigation\NavigationMetadataUpdater;
 use App\Support\Navigation\NavigationPublisher;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 
 class NavigationController extends Controller
 {
@@ -21,6 +24,7 @@ class NavigationController extends Controller
         private readonly NavigationCreator $navigationCreator,
         private readonly NavigationPublisher $navigationPublisher,
         private readonly NavigationMetadataUpdater $navigationMetadataUpdater,
+        private readonly NavigationDeleter $navigationDeleter,
     ) {}
 
     public function index(Account $account, Website $website): AnonymousResourceCollection
@@ -82,5 +86,18 @@ class NavigationController extends Controller
         );
 
         return new NavigationResource($navigation);
+    }
+
+    public function destroy(
+        Request $request,
+        Account $account,
+        Website $website,
+        Navigation $navigation,
+    ): Response {
+        $this->authorize('delete', $navigation);
+
+        $this->navigationDeleter->delete($navigation);
+
+        return response()->noContent();
     }
 }

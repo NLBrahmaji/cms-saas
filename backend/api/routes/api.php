@@ -41,6 +41,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/accounts/{account}/websites/{website}/navigations', [NavigationController::class, 'store']);
         Route::get('/accounts/{account}/websites/{website}/navigations/{navigation}', [NavigationController::class, 'show']);
         Route::patch('/accounts/{account}/websites/{website}/navigations/{navigation}', [NavigationController::class, 'update']);
+        Route::delete('/accounts/{account}/websites/{website}/navigations/{navigation}', [NavigationController::class, 'destroy']);
         Route::post('/accounts/{account}/websites/{website}/navigations/{navigation}/publish', [NavigationController::class, 'publish']);
         Route::get('/accounts/{account}/websites/{website}/navigations/{navigation}/items', [NavigationItemController::class, 'index']);
         Route::post('/accounts/{account}/websites/{website}/navigations/{navigation}/items', [NavigationItemController::class, 'store']);
