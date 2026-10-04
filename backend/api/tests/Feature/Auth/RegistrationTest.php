@@ -31,7 +31,7 @@ function registerFromStatefulOrigin(array $payload = []): TestResponse
 {
     return test()->withHeaders([
         'Origin' => 'http://localhost:3001',
-    ])->postJson('/auth/register', registrationPayload($payload));
+    ])->postJson('/v1/auth/register', registrationPayload($payload));
 }
 
 test('successful registration returns 201 with expected response structure', function () {

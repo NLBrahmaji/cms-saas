@@ -56,7 +56,7 @@ function statefulPostJsonForAccounts(string $uri, array $data = []): TestRespons
 
 function loginAccountDiscoveryUser(User $user, string $password = 'Str0ngPass!'): void
 {
-    statefulPostJsonForAccounts('/auth/login', [
+    statefulPostJsonForAccounts('/v1/auth/login', [
         'email' => $user->email,
         'password' => $password,
     ])->assertOk();
@@ -142,7 +142,7 @@ function attachAdditionalAccountRole(User $user, Account $account, string $roleN
 }
 
 test('unauthenticated account discovery request is unauthorized', function () {
-    statefulGetJsonForAccounts('/accounts')
+    statefulGetJsonForAccounts(('/v1/accounts'))
         ->assertUnauthorized();
 });
 
@@ -152,7 +152,7 @@ test('authenticated user sees accessible active account with role', function () 
 
     loginAccountDiscoveryUser($user);
 
-    statefulGetJsonForAccounts('/accounts')
+    statefulGetJsonForAccounts(('/v1/accounts'))
         ->assertOk()
         ->assertExactJson([
             'data' => [
@@ -180,7 +180,7 @@ test('accounts without membership are excluded from discovery', function () {
 
     loginAccountDiscoveryUser($outsider);
 
-    statefulGetJsonForAccounts('/accounts')
+    statefulGetJsonForAccounts(('/v1/accounts'))
         ->assertOk()
         ->assertExactJson(['data' => []]);
 });
@@ -191,7 +191,7 @@ test('inactive membership excludes account from discovery', function () {
 
     loginAccountDiscoveryUser($user);
 
-    statefulGetJsonForAccounts('/accounts')
+    statefulGetJsonForAccounts(('/v1/accounts'))
         ->assertOk()
         ->assertExactJson(['data' => []]);
 });
@@ -202,7 +202,7 @@ test('inactive account is excluded from discovery', function () {
 
     loginAccountDiscoveryUser($user);
 
-    statefulGetJsonForAccounts('/accounts')
+    statefulGetJsonForAccounts(('/v1/accounts'))
         ->assertOk()
         ->assertExactJson(['data' => []]);
 });
@@ -214,7 +214,7 @@ test('soft deleted account is excluded from discovery', function () {
 
     loginAccountDiscoveryUser($user);
 
-    statefulGetJsonForAccounts('/accounts')
+    statefulGetJsonForAccounts(('/v1/accounts'))
         ->assertOk()
         ->assertExactJson(['data' => []]);
 });
@@ -230,7 +230,7 @@ test('owner id alone does not grant discovery access without active membership',
 
     loginAccountDiscoveryUser($owner);
 
-    statefulGetJsonForAccounts('/accounts')
+    statefulGetJsonForAccounts(('/v1/accounts'))
         ->assertOk()
         ->assertExactJson(['data' => []]);
 });
@@ -243,7 +243,7 @@ test('multiple accessible accounts are returned in id order with correct roles',
 
     loginAccountDiscoveryUser($user);
 
-    statefulGetJsonForAccounts('/accounts')
+    statefulGetJsonForAccounts(('/v1/accounts'))
         ->assertOk()
         ->assertExactJson([
             'data' => [
@@ -269,7 +269,7 @@ test('active membership without role returns null role metadata', function () {
 
     loginAccountDiscoveryUser($user);
 
-    statefulGetJsonForAccounts('/accounts')
+    statefulGetJsonForAccounts(('/v1/accounts'))
         ->assertOk()
         ->assertExactJson([
             'data' => [
@@ -290,7 +290,7 @@ test('multiple distinct roles for the same account return null role metadata', f
 
     loginAccountDiscoveryUser($user);
 
-    statefulGetJsonForAccounts('/accounts')
+    statefulGetJsonForAccounts(('/v1/accounts'))
         ->assertOk()
         ->assertExactJson([
             'data' => [
@@ -312,7 +312,7 @@ test('multiple distinct roles for one account do not fail account discovery', fu
 
     loginAccountDiscoveryUser($user);
 
-    $response = statefulGetJsonForAccounts('/accounts')->assertOk();
+    $response = statefulGetJsonForAccounts(('/v1/accounts'))->assertOk();
 
     expect($response->json('data'))->toHaveCount(2);
 
@@ -331,7 +331,7 @@ test('account scoped roles do not leak between accounts', function () {
 
     loginAccountDiscoveryUser($user);
 
-    $response = statefulGetJsonForAccounts('/accounts')->assertOk();
+    $response = statefulGetJsonForAccounts(('/v1/accounts'))->assertOk();
 
     $rolesByAccountName = collect($response->json('data'))
         ->mapWithKeys(fn (array $item) => [$item['name'] => $item['role']]);
@@ -346,7 +346,7 @@ test('account discovery response exposes only intended fields', function () {
 
     loginAccountDiscoveryUser($user);
 
-    $response = statefulGetJsonForAccounts('/accounts')->assertOk();
+    $response = statefulGetJsonForAccounts(('/v1/accounts'))->assertOk();
 
     expect(array_keys($response->json()))->toBe(['data']);
 

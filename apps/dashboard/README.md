@@ -7,7 +7,8 @@ Authenticated customer dashboard for SitePro (`apps/dashboard`).
 - **Dashboard:** [http://localhost:3001](http://localhost:3001)
 - **Laravel API:** [http://localhost:8000](http://localhost:8000)
 
-The dashboard calls the Laravel API **directly** from the browser. Laravel Sanctum
+The dashboard calls the Laravel API **directly** from the browser (application
+routes under `/v1`; Sanctum CSRF at `/sanctum/csrf-cookie`). Laravel Sanctum
 session/CSRF and CORS are already configured to allow credentialed requests from
 `http://localhost:3001`.
 

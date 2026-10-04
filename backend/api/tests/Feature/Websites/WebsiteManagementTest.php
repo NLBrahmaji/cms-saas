@@ -86,7 +86,7 @@ function createWebsiteManagementUser(array $overrides = []): User
 
 function loginWebsiteManagementUser(User $user, string $password = 'Str0ngPass!'): void
 {
-    statefulPostJsonForWebsites('/auth/login', [
+    statefulPostJsonForWebsites('/v1/auth/login', [
         'email' => $user->email,
         'password' => $password,
     ])->assertOk();
@@ -143,7 +143,7 @@ function websiteResourcePayload(Website $website): array
 
 function accountWebsitesUri(Account $account, ?Website $website = null): string
 {
-    $uri = '/accounts/'.$account->id.'/websites';
+    $uri = '/v1/accounts/'.$account->id.'/websites';
 
     if ($website !== null) {
         $uri .= '/'.$website->id;
@@ -431,7 +431,7 @@ test('website show returns not found for website belonging to another account', 
 
     loginWebsiteManagementUser($user);
 
-    statefulGetJsonForWebsites('/accounts/'.$accountA->id.'/websites/'.$websiteOnB->id)
+    statefulGetJsonForWebsites('/v1/accounts/'.$accountA->id.'/websites/'.$websiteOnB->id)
         ->assertNotFound();
 });
 
@@ -534,7 +534,7 @@ test('website patch returns not found for website belonging to another account',
 
     loginWebsiteManagementUser($user);
 
-    statefulPatchJsonForWebsites('/accounts/'.$accountA->id.'/websites/'.$websiteOnB->id, ['name' => 'Nope'])
+    statefulPatchJsonForWebsites('/v1/accounts/'.$accountA->id.'/websites/'.$websiteOnB->id, ['name' => 'Nope'])
         ->assertNotFound();
 });
 
@@ -801,7 +801,7 @@ test('website delete returns not found for website belonging to another account'
 
     loginWebsiteManagementUser($user);
 
-    statefulDeleteJsonForWebsites('/accounts/'.$accountA->id.'/websites/'.$websiteOnB->id)->assertNotFound();
+    statefulDeleteJsonForWebsites('/v1/accounts/'.$accountA->id.'/websites/'.$websiteOnB->id)->assertNotFound();
 
     expect($websiteOnB->fresh()->deleted_at)->toBeNull();
 });

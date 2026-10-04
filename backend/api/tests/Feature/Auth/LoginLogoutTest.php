@@ -72,7 +72,7 @@ function loginPayload(array $overrides = []): array
 
 function loginFromStatefulOrigin(array $payload = []): TestResponse
 {
-    return statefulPostJson('/auth/login', loginPayload($payload));
+    return statefulPostJson('/v1/auth/login', loginPayload($payload));
 }
 
 function createUserForLoginTests(): User
@@ -188,7 +188,7 @@ test('authenticated user can logout', function () {
     createUserForLoginTests();
     loginFromStatefulOrigin()->assertOk();
 
-    statefulPostJson('/auth/logout')
+    statefulPostJson('/v1/auth/logout')
         ->assertOk()
         ->assertJson(['message' => 'Logged out.']);
 });
@@ -200,14 +200,14 @@ test('logout clears authentication and invalidates the session', function () {
 
     $sessionCookieWhileAuthenticated = $loginResponse->getCookie(config('session.cookie'))?->getValue();
 
-    $logoutResponse = statefulPostJson('/auth/logout');
+    $logoutResponse = statefulPostJson('/v1/auth/logout');
     $logoutResponse->assertOk();
 
     $sessionCookieAfterLogout = $logoutResponse->getCookie(config('session.cookie'))?->getValue();
 
     expect($sessionCookieAfterLogout)->not->toBe($sessionCookieWhileAuthenticated);
 
-    statefulGetJson('/user')->assertUnauthorized();
+    statefulGetJson('/v1/user')->assertUnauthorized();
 });
 
 test('logout regenerates the csrf token', function () {
@@ -217,7 +217,7 @@ test('logout regenerates the csrf token', function () {
 
     $xsrfBeforeLogout = $loginResponse->getCookie('XSRF-TOKEN')?->getValue();
 
-    $logoutResponse = statefulPostJson('/auth/logout');
+    $logoutResponse = statefulPostJson('/v1/auth/logout');
     $logoutResponse->assertOk();
 
     $xsrfAfterLogout = $logoutResponse->getCookie('XSRF-TOKEN')?->getValue();
@@ -226,12 +226,12 @@ test('logout regenerates the csrf token', function () {
 });
 
 test('unauthenticated user cannot access user endpoint', function () {
-    statefulGetJson('/user')
+    statefulGetJson('/v1/user')
         ->assertUnauthorized();
 });
 
 test('unauthenticated logout is rejected', function () {
-    statefulPostJson('/auth/logout')
+    statefulPostJson('/v1/auth/logout')
         ->assertUnauthorized();
 });
 
@@ -239,7 +239,7 @@ test('protected auth routes reject requests after logging out', function () {
     createUserForLoginTests();
     loginFromStatefulOrigin()->assertOk();
 
-    statefulPostJson('/auth/logout')->assertOk();
+    statefulPostJson('/v1/auth/logout')->assertOk();
 
-    statefulGetJson('/user')->assertUnauthorized();
+    statefulGetJson('/v1/user')->assertUnauthorized();
 });

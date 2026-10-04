@@ -90,12 +90,12 @@ function expectedAuthenticatedUserPayload(User $user): array
 test('authenticated user receives the controlled user response', function () {
     $user = createUserForAuthenticatedUserTests();
 
-    statefulPostJsonForUser('/auth/login', [
+    statefulPostJsonForUser('/v1/auth/login', [
         'email' => 'ada@example.com',
         'password' => 'Str0ngPass!',
     ])->assertOk();
 
-    statefulGetJsonForUser('/user')
+    statefulGetJsonForUser('/v1/user')
         ->assertOk()
         ->assertExactJson(expectedAuthenticatedUserPayload($user));
 });
@@ -103,12 +103,12 @@ test('authenticated user receives the controlled user response', function () {
 test('authenticated user response exposes only the expected user fields', function () {
     createUserForAuthenticatedUserTests();
 
-    statefulPostJsonForUser('/auth/login', [
+    statefulPostJsonForUser('/v1/auth/login', [
         'email' => 'ada@example.com',
         'password' => 'Str0ngPass!',
     ])->assertOk();
 
-    $response = statefulGetJsonForUser('/user')->assertOk();
+    $response = statefulGetJsonForUser('/v1/user')->assertOk();
 
     expect(array_keys($response->json()))->toBe(['user']);
     expect(array_keys($response->json('user')))->toEqual(['id', 'name', 'email']);
@@ -121,14 +121,14 @@ test('authenticated user response exposes only the expected user fields', functi
 });
 
 test('unauthenticated user request receives unauthorized', function () {
-    statefulGetJsonForUser('/user')
+    statefulGetJsonForUser('/v1/user')
         ->assertUnauthorized();
 });
 
 test('login user response contract is unchanged', function () {
     $user = createUserForAuthenticatedUserTests();
 
-    statefulPostJsonForUser('/auth/login', [
+    statefulPostJsonForUser('/v1/auth/login', [
         'email' => 'ada@example.com',
         'password' => 'Str0ngPass!',
     ])
@@ -137,7 +137,7 @@ test('login user response contract is unchanged', function () {
 });
 
 test('registration user response contract is unchanged', function () {
-    $response = statefulPostJsonForUser('/auth/register', [
+    $response = statefulPostJsonForUser('/v1/auth/register', [
         'name' => 'Ada Lovelace',
         'email' => 'ada@example.com',
         'password' => 'Str0ngPass!',

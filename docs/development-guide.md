@@ -631,8 +631,10 @@ For APIs:
 
 Follow the application's established routing convention.
 
-Do not introduce a new API versioning structure unless the project architecture
-requires it.
+Application-owned HTTP API routes are versioned under **`/v1`** (for example
+`POST /v1/auth/login`, `GET /v1/accounts`). There is **no** `/api` URL prefix.
+Laravel Sanctum's CSRF cookie endpoint remains **`/sanctum/csrf-cookie`** (not
+under `/v1`).
 
 Do not add an `/api` prefix merely because Laravel APIs commonly use one if
 the established SitePro routing convention intentionally does not.

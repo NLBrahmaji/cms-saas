@@ -66,7 +66,7 @@ function createAccountShowUser(array $overrides = []): User
 
 function loginAccountShowUser(User $user, string $password = 'Str0ngPass!'): void
 {
-    statefulPostJsonForAccountShow('/auth/login', [
+    statefulPostJsonForAccountShow('/v1/auth/login', [
         'email' => $user->email,
         'password' => $password,
     ])->assertOk();
@@ -132,7 +132,7 @@ test('unauthenticated account show request is unauthorized', function () {
         'status' => 'active',
     ]);
 
-    statefulGetJsonForAccountShow('/accounts/'.$account->id)
+    statefulGetJsonForAccountShow('/v1/accounts/'.$account->id)
         ->assertUnauthorized();
 });
 
@@ -142,7 +142,7 @@ test('active member with account view permission can show the account', function
 
     loginAccountShowUser($user);
 
-    statefulGetJsonForAccountShow('/accounts/'.$account->id)
+    statefulGetJsonForAccountShow('/v1/accounts/'.$account->id)
         ->assertOk()
         ->assertExactJson(expectedAccountShowPayload($account));
 });
@@ -153,7 +153,7 @@ test('account show response exposes only intended fields', function () {
 
     loginAccountShowUser($user);
 
-    $response = statefulGetJsonForAccountShow('/accounts/'.$account->id)->assertOk();
+    $response = statefulGetJsonForAccountShow('/v1/accounts/'.$account->id)->assertOk();
 
     expect(array_keys($response->json('data')))->toEqual(['id', 'name', 'status']);
 });
@@ -164,7 +164,7 @@ test('active member without account view permission is forbidden', function () {
 
     loginAccountShowUser($user);
 
-    statefulGetJsonForAccountShow('/accounts/'.$account->id)
+    statefulGetJsonForAccountShow('/v1/accounts/'.$account->id)
         ->assertForbidden();
 });
 
@@ -176,7 +176,7 @@ test('another users account without membership is not found', function () {
 
     loginAccountShowUser($outsider);
 
-    statefulGetJsonForAccountShow('/accounts/'.$account->id)
+    statefulGetJsonForAccountShow('/v1/accounts/'.$account->id)
         ->assertNotFound();
 });
 
@@ -186,7 +186,7 @@ test('inactive membership is forbidden', function () {
 
     loginAccountShowUser($user);
 
-    statefulGetJsonForAccountShow('/accounts/'.$account->id)
+    statefulGetJsonForAccountShow('/v1/accounts/'.$account->id)
         ->assertForbidden();
 });
 
@@ -196,7 +196,7 @@ test('inactive account with membership is forbidden', function () {
 
     loginAccountShowUser($user);
 
-    statefulGetJsonForAccountShow('/accounts/'.$account->id)
+    statefulGetJsonForAccountShow('/v1/accounts/'.$account->id)
         ->assertForbidden();
 });
 
@@ -207,7 +207,7 @@ test('soft deleted account is not found', function () {
 
     loginAccountShowUser($user);
 
-    statefulGetJsonForAccountShow('/accounts/'.$account->id)
+    statefulGetJsonForAccountShow('/v1/accounts/'.$account->id)
         ->assertNotFound();
 });
 
@@ -215,7 +215,7 @@ test('nonexistent account is not found', function () {
     $user = createAccountShowUser();
     loginAccountShowUser($user);
 
-    statefulGetJsonForAccountShow('/accounts/999999')
+    statefulGetJsonForAccountShow('/v1/accounts/999999')
         ->assertNotFound();
 });
 
@@ -230,7 +230,7 @@ test('owner id without membership does not grant account show access', function 
 
     loginAccountShowUser($owner);
 
-    statefulGetJsonForAccountShow('/accounts/'.$account->id)
+    statefulGetJsonForAccountShow('/v1/accounts/'.$account->id)
         ->assertNotFound();
 });
 
@@ -242,7 +242,7 @@ test('account scoped permissions do not authorize another account', function () 
 
     loginAccountShowUser($user);
 
-    statefulGetJsonForAccountShow('/accounts/'.$accountB->id)
+    statefulGetJsonForAccountShow('/v1/accounts/'.$accountB->id)
         ->assertForbidden();
 });
 
@@ -255,7 +255,7 @@ test('spatie team context is restored after successful account show', function (
     $registrar = app(PermissionRegistrar::class);
     $registrar->setPermissionsTeamId(999);
 
-    statefulGetJsonForAccountShow('/accounts/'.$account->id)->assertOk();
+    statefulGetJsonForAccountShow('/v1/accounts/'.$account->id)->assertOk();
 
     expect($registrar->getPermissionsTeamId())->toBe(999);
 });
@@ -269,7 +269,7 @@ test('spatie team context is restored after policy denial', function () {
     $registrar = app(PermissionRegistrar::class);
     $registrar->setPermissionsTeamId(999);
 
-    statefulGetJsonForAccountShow('/accounts/'.$account->id)->assertForbidden();
+    statefulGetJsonForAccountShow('/v1/accounts/'.$account->id)->assertForbidden();
 
     expect($registrar->getPermissionsTeamId())->toBe(999);
 });
@@ -283,7 +283,7 @@ test('tenant gate denial does not change spatie team context', function () {
     $registrar = app(PermissionRegistrar::class);
     $registrar->setPermissionsTeamId(999);
 
-    statefulGetJsonForAccountShow('/accounts/'.$account->id)->assertForbidden();
+    statefulGetJsonForAccountShow('/v1/accounts/'.$account->id)->assertForbidden();
 
     expect($registrar->getPermissionsTeamId())->toBe(999);
 });
@@ -292,7 +292,7 @@ test('registration restores spatie team context after account bootstrap', functi
     $registrar = app(PermissionRegistrar::class);
     $registrar->setPermissionsTeamId(4242);
 
-    statefulPostJsonForAccountShow('/auth/register', [
+    statefulPostJsonForAccountShow('/v1/auth/register', [
         'name' => 'Ada Lovelace',
         'email' => 'ada@example.com',
         'password' => 'Str0ngPass!',

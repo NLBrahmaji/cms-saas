@@ -10,8 +10,21 @@ export function getApiBaseUrl(): string {
   return configured.replace(/\/+$/, "");
 }
 
+function withApplicationApiVersion(path: string): string {
+  if (path.startsWith("/sanctum/")) {
+    return path;
+  }
+
+  if (path.startsWith("/v1/")) {
+    return path;
+  }
+
+  return `/v1${path}`;
+}
+
 export function apiUrl(path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const versionedPath = withApplicationApiVersion(normalizedPath);
 
-  return `${getApiBaseUrl()}${normalizedPath}`;
+  return `${getApiBaseUrl()}${versionedPath}`;
 }

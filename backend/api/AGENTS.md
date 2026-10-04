@@ -292,6 +292,12 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 - - For APIs, prefer Eloquent API Resources where appropriate and follow the application's established routing/versioning convention. Do not introduce a new API versioning structure unless the project architecture requires it.
 
+## API routing:
+- All application-owned API routes must live under `/v1`.
+- Do not add Laravel's `/api` prefix.
+- Sanctum infrastructure routes such as `/sanctum/csrf-cookie` remain unversioned.
+- New application endpoints must use the existing `/v1` route group.
+
 ## URL Generation
 
 - When generating links to other pages, prefer named routes and the `route()` function.

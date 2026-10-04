@@ -68,7 +68,7 @@ function createWebsiteSettingsUser(array $overrides = []): User
 
 function loginWebsiteSettingsUser(User $user, string $password = 'Str0ngPass!'): void
 {
-    test()->withHeaders(websiteSettingsOriginHeaders())->postJson('/auth/login', [
+    test()->withHeaders(websiteSettingsOriginHeaders())->postJson('/v1/auth/login', [
         'email' => $user->email,
         'password' => $password,
     ])->assertOk();
@@ -117,7 +117,7 @@ function attachWebsiteSettingsMembership(
 
 function accountWebsiteSettingsUri(Account $account, Website $website): string
 {
-    return '/accounts/'.$account->id.'/websites/'.$website->id.'/settings';
+    return '/v1/accounts/'.$account->id.'/websites/'.$website->id.'/settings';
 }
 
 /**
