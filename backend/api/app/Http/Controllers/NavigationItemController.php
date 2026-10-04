@@ -12,9 +12,11 @@ use App\Models\NavigationItem;
 use App\Models\Website;
 use App\Support\Navigation\DraftNavigationVersionResolver;
 use App\Support\Navigation\NavigationItemCreator;
+use App\Support\Navigation\NavigationItemDeleter;
 use App\Support\Navigation\NavigationItemReorderer;
 use App\Support\Navigation\NavigationItemUpdater;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
@@ -25,6 +27,7 @@ class NavigationItemController extends Controller
         private readonly NavigationItemCreator $navigationItemCreator,
         private readonly NavigationItemUpdater $navigationItemUpdater,
         private readonly NavigationItemReorderer $navigationItemReorderer,
+        private readonly NavigationItemDeleter $navigationItemDeleter,
     ) {}
 
     public function index(Account $account, Website $website, Navigation $navigation): AnonymousResourceCollection
@@ -92,5 +95,23 @@ class NavigationItemController extends Controller
         );
 
         return new NavigationItemResource($updated);
+    }
+
+    public function destroy(
+        Request $request,
+        Account $account,
+        Website $website,
+        Navigation $navigation,
+        string $item,
+    ): Response {
+        $this->authorize('update', $navigation);
+
+        $this->navigationItemDeleter->delete(
+            $navigation,
+            $request->user(),
+            $item,
+        );
+
+        return response()->noContent();
     }
 }
