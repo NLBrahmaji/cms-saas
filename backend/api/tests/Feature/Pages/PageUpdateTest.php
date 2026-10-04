@@ -209,7 +209,10 @@ function attachPublishedSnapshotFixture(PageVersion $version): array
         'page_version_id' => $version->id,
         'meta_title' => 'Published title',
         'meta_description' => 'Published description',
-        'robots_index' => true,
+        'og_title' => 'Published OG title',
+        'og_description' => 'Published OG description',
+        'canonical_url' => 'https://example.com/published',
+        'robots_index' => false,
         'robots_follow' => true,
     ]);
 
@@ -462,8 +465,19 @@ test('published snapshot clone copies seo sections and content independently', f
 
     $versionTwo = PageVersion::query()->where('version', 2)->firstOrFail();
 
+    $sourceSeo = PageVersionSeoSetting::query()->where('page_version_id', $versionOne->id)->firstOrFail();
+    $clonedSeo = PageVersionSeoSetting::query()->where('page_version_id', $versionTwo->id)->firstOrFail();
+
     expect(PageVersionSeoSetting::query()->where('page_version_id', $versionOne->id)->count())->toBe(1)
         ->and(PageVersionSeoSetting::query()->where('page_version_id', $versionTwo->id)->count())->toBe(1)
+        ->and($clonedSeo->id)->not->toBe($sourceSeo->id)
+        ->and($clonedSeo->meta_title)->toBe('Published title')
+        ->and($clonedSeo->meta_description)->toBe('Published description')
+        ->and($clonedSeo->og_title)->toBe('Published OG title')
+        ->and($clonedSeo->og_description)->toBe('Published OG description')
+        ->and($clonedSeo->canonical_url)->toBe('https://example.com/published')
+        ->and($clonedSeo->robots_index)->toBeFalse()
+        ->and($clonedSeo->robots_follow)->toBeTrue()
         ->and(PageSection::query()->where('page_version_id', $versionOne->id)->count())->toBe(1)
         ->and(PageSection::withTrashed()->where('page_version_id', $versionOne->id)->count())->toBe(2)
         ->and(PageSection::query()->where('page_version_id', $versionTwo->id)->count())->toBe(1);

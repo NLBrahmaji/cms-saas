@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PageVersion extends Model
 {
@@ -55,5 +56,10 @@ class PageVersion extends Model
     public function sections(): HasMany
     {
         return $this->hasMany(PageSection::class);
+    }
+
+    public function seoSetting(): HasOne
+    {
+        return $this->hasOne(PageVersionSeoSetting::class, 'page_version_id');
     }
 }
