@@ -3,20 +3,16 @@
 namespace App\Support\Page;
 
 use App\Models\Website;
-use App\Support\Media\MediaRasterImage;
+use App\Support\Media\WebsiteSelectableMedia;
 
 class PageSeoOgImageResolver
 {
+    public function __construct(
+        private readonly WebsiteSelectableMedia $websiteSelectableMedia,
+    ) {}
+
     public function isSelectableOgImage(Website $website, int $mediaId): bool
     {
-        $media = $website->media()
-            ->whereKey($mediaId)
-            ->first();
-
-        if ($media === null) {
-            return false;
-        }
-
-        return MediaRasterImage::isAllowedMimeType($media->mime_type);
+        return $this->websiteSelectableMedia->isSelectableRasterImage($website, $mediaId);
     }
 }

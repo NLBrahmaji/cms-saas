@@ -47,6 +47,11 @@ class Website extends Model
         return $this->hasOne(WebsiteSetting::class);
     }
 
+    public function branding(): HasOne
+    {
+        return $this->hasOne(WebsiteBranding::class);
+    }
+
     public function pages(): HasMany
     {
         return $this->hasMany(Page::class);
