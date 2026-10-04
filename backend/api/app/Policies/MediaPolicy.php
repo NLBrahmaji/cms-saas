@@ -21,4 +21,9 @@ class MediaPolicy
     {
         return $user->can('media.view');
     }
+
+    public function update(User $user, Media $media): bool
+    {
+        return $user->can('media.update');
+    }
 }
