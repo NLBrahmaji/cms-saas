@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\Account\AccessibleAccountResource;
+use App\Http\Resources\Auth\RegisteredAccountResource;
 use App\Models\Account;
 use App\Models\User;
 use Database\Seeders\AccountPermissionSeeder;
@@ -33,6 +34,13 @@ class AccountController extends Controller
         });
 
         return AccessibleAccountResource::collection($accounts)->response();
+    }
+
+    public function show(Account $account): RegisteredAccountResource
+    {
+        $this->authorize('view', $account);
+
+        return new RegisteredAccountResource($account);
     }
 
     /**

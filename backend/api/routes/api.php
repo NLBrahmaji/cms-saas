@@ -13,3 +13,7 @@ Route::post('/auth/logout', [LogoutController::class, 'destroy'])->middleware('a
 
 Route::get('/user', [AuthenticatedUserController::class, 'show'])->middleware('auth:sanctum');
 Route::get('/accounts', [AccountController::class, 'index'])->middleware('auth:sanctum');
+
+Route::middleware(['auth:sanctum', 'account.member'])->group(function () {
+    Route::get('/accounts/{account}', [AccountController::class, 'show']);
+});

@@ -41,19 +41,25 @@ class RegisterController extends Controller
             ]);
 
             $permissionRegistrar = app(PermissionRegistrar::class);
-            $permissionRegistrar->setPermissionsTeamId($account->id);
+            $previousTeamId = $permissionRegistrar->getPermissionsTeamId();
 
-            $ownerRole = Role::query()->create([
-                'name' => 'owner',
-                'guard_name' => AccountPermissionSeeder::GUARD,
-                'team_id' => $account->id,
-            ]);
+            try {
+                $permissionRegistrar->setPermissionsTeamId($account->id);
 
-            $ownerRole->givePermissionTo(AccountPermissionSeeder::PERMISSIONS);
+                $ownerRole = Role::query()->create([
+                    'name' => 'owner',
+                    'guard_name' => AccountPermissionSeeder::GUARD,
+                    'team_id' => $account->id,
+                ]);
 
-            $user->assignRole($ownerRole);
+                $ownerRole->givePermissionTo(AccountPermissionSeeder::PERMISSIONS);
 
-            $permissionRegistrar->forgetCachedPermissions();
+                $user->assignRole($ownerRole);
+
+                $permissionRegistrar->forgetCachedPermissions();
+            } finally {
+                $permissionRegistrar->setPermissionsTeamId($previousTeamId);
+            }
 
             return [$user, $account];
         });
