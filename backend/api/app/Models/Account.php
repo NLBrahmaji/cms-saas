@@ -31,6 +31,11 @@ class Account extends Model
         return $this->hasMany(AccountMember::class);
     }
 
+    public function websites(): HasMany
+    {
+        return $this->hasMany(Website::class);
+    }
+
     /**
      * @param  Builder<Account>  $query
      */
