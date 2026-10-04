@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\AuthenticatedUserController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\PageController;
 use App\Http\Controllers\WebsiteController;
 use App\Http\Controllers\WebsiteSettingController;
 use Illuminate\Support\Facades\Route;
@@ -28,5 +29,9 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/accounts/{account}/websites/{website}/settings', [WebsiteSettingController::class, 'show']);
         Route::patch('/accounts/{account}/websites/{website}/settings', [WebsiteSettingController::class, 'update']);
+
+        Route::get('/accounts/{account}/websites/{website}/pages', [PageController::class, 'index']);
+        Route::post('/accounts/{account}/websites/{website}/pages', [PageController::class, 'store']);
+        Route::get('/accounts/{account}/websites/{website}/pages/{page}', [PageController::class, 'show']);
     });
 });
