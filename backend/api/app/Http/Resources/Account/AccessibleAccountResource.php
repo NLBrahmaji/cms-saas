@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Resources\Auth;
+namespace App\Http\Resources\Account;
 
-use App\Models\User;
+use App\Models\Account;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin User */
-class RegisteredUserResource extends JsonResource
+/** @mixin Account */
+class AccessibleAccountResource extends JsonResource
 {
     /**
      * @return array<string, mixed>
@@ -17,7 +17,8 @@ class RegisteredUserResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'email' => $this->email,
+            'status' => $this->status,
+            'role' => $this->discovery_role,
         ];
     }
 }

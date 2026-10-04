@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Resources\Auth\AuthenticatedUserResource;
 use App\Http\Resources\Auth\RegisteredAccountResource;
-use App\Http\Resources\Auth\RegisteredUserResource;
 use App\Models\Account;
 use App\Models\AccountMember;
 use App\Models\User;
@@ -62,7 +62,7 @@ class RegisterController extends Controller
         $request->session()->regenerate();
 
         return response()->json([
-            'user' => new RegisteredUserResource($user),
+            'user' => new AuthenticatedUserResource($user),
             'account' => new RegisteredAccountResource($account),
         ], 201);
     }
